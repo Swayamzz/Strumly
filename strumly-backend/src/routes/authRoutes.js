@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { forgotPassword, verifyOTP, resetPassword } = require('../controllers/passwordResetController');
 const {
   register,
   login,
@@ -16,6 +17,10 @@ router.post('/login', login);
 // Protected routes
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
-router.put('/change-password', protect, changePassword);
+router.put('/change-password', protect, changePassword); 
+
+router.post('/forgot-password', forgotPassword);
+router.post('/verify-otp',      verifyOTP);
+router.post('/reset-password',  resetPassword);
 
 module.exports = router;

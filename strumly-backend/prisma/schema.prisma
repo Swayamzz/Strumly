@@ -1,0 +1,268 @@
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Model - Musicians and Band Leaders
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  password         String
+  username         String    @unique
+  role             UserRole  @default(MUSICIAN)
+
+  // Profile Information
+  firstName        String?
+  lastName         String?
+  bio              String?   @db.Text
+  profilePicture   String?
+  location         String?
+
+  // Musician Specific Fields
+  instruments      String[]
+  genres           String[]
+  skillLevel       SkillLevel?
+  experience       Int?
+  availability     String?
+
+  // Timestamps
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lastLogin        DateTime?
+
+  // Relations
+  bands            BandMember[]
+  sentRequests     CollaborationRequest[] @relation("SentRequests")
+  receivedRequests CollaborationRequest[] @relation("ReceivedRequests")
+  messages         Message[]
+  mediaFiles       MediaFile[]
+  followers        Follow[]   @relation("Following")
+  following        Follow[]   @relation("Follower")
+  posts            Post[]
+  postLikes        PostLike[]
+  stories          Story[]
+
+  @@index([email])
+  @@index([username])
+  @@map("users")
+}
+
+// Band Model
+model Band {
+  id                    String    @id @default(uuid())
+  name                  String
+  description           String?   @db.Text
+  genre                 String[]
+  location              String?
+  profilePicture        String?
+  lookingFor            String[]
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  members               BandMember[]
+  collaborationRequests CollaborationRequest[]
+
+  @@map("bands")
+}
+
+// Band Members - Junction Table
+model BandMember {
+  id       String   @id @default(uuid())
+  userId   String
+  bandId   String
+  role     BandRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  band     Band     @relation(fields: [bandId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bandId])
+  @@map("band_members")
+}
+
+// Collaboration Requests
+model CollaborationRequest {
+  id         String        @id @default(uuid())
+  senderId   String
+  receiverId String?
+  bandId     String?
+
+  message    String?       @db.Text
+  status     RequestStatus @default(PENDING)
+
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  sender     User          @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User?         @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  band       Band?         @relation(fields: [bandId], references: [id], onDelete: Cascade)
+
+  @@map("collaboration_requests")
+}
+
+// Messages for real-time communication
+model Message {
+  id         String   @id @default(uuid())
+  content    String   @db.Text
+  senderId   String
+  receiverId String
+
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  sender     User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, receiverId])
+  @@map("messages")
+}
+
+// Media Files (Audio/Video samples)
+model MediaFile {
+  id          String    @id @default(uuid())
+  userId      String
+  fileName    String
+  fileUrl     String
+  fileType    MediaType
+  fileSize    Int
+
+  description String?
+
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("media_files")
+}
+
+// Follow System
+model Follow {
+  id          String       @id @default(cuid())
+  followerId  String
+  followingId String
+  status      FollowStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  follower    User         @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User         @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+}
+
+// Password Reset
+model PasswordReset {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  otp       String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Community Posts/Feed (merged)
+model Post {
+  id        String        @id @default(cuid())
+  content   String        @default("") @db.Text
+  tags      String[]
+  authorId  String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media     PostMedia[]
+  likes     PostLike[]
+  comments  PostComment[]
+
+  @@map("posts")
+}
+
+model PostMedia {
+  id       String    @id @default(cuid())
+  postId   String
+  url      String
+  type     MediaType @default(IMAGE)
+  filename String
+  size     Int       @default(0)
+
+  post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model PostLike {
+  id     String @id @default(cuid())
+  userId String
+  postId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+}
+
+model PostComment {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model Story {
+  id        String    @id @default(cuid())
+  authorId  String
+  mediaUrl  String
+  mediaType MediaType @default(IMAGE)
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  MUSICIAN
+  BAND_LEADER
+  ADMIN
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  PROFESSIONAL
+}
+
+enum BandRole {
+  LEADER
+  MEMBER
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+// Merged MediaType — covers all usages across MediaFile, PostMedia, and Story
+enum MediaType {
+  AUDIO
+  VIDEO
+  IMAGE
+}
+
+enum FollowStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}

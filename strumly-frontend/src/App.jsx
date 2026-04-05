@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import AuthPages from "./AuthPages";
 import HomePage from "./HomePage";
+import AdminPage from "./AdminPage";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -39,5 +40,6 @@ export default function App() {
   );
 
   if (!user) return <AuthPages onLogin={handleLogin} />;
+  if (user.role === "ADMIN") return <AdminPage currentUser={user} onLogout={handleLogout} />;
   return <HomePage user={user} onLogout={handleLogout} />;
 }

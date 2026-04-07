@@ -23,9 +23,8 @@ const forgotPassword = async (req, res) => {
 
     const user = await prisma.user.findUnique({ where: { email } });
 
-    // Always return success even if user not found (security best practice)
     if (!user) {
-      return res.json({ success: true, message: 'If that email exists, a code has been sent' });
+      return res.status(404).json({ success: false, message: 'No account found with this email address' });
     }
 
     const otp = generateOTP();

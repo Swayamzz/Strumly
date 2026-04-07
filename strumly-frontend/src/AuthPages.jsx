@@ -342,7 +342,21 @@ function RegisterPage({ onSwitch, onLogin }) {
     return e;
   };
 
-  const handleNext = ev => { ev.preventDefault(); const e=validateStep1(); setErrors(e); if(!Object.keys(e).length){ setErrors({}); setStep(2); } };
+  const handleNext = async ev => {
+    ev.preventDefault();
+    const e = validateStep1(); setErrors(e);
+    if(Object.keys(e).length) return;
+    setLoading(true); setApiError("");
+    try {
+      const res = await fetch(`${API_BASE}/auth/check-availability`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({email:form.email, username:form.username})
+      });
+      const data = await res.json();
+      if(!data.success) { setApiError(data.message); setLoading(false); return; }
+    } catch { /* if endpoint doesn't exist, skip the check */ }
+    setLoading(false); setErrors({}); setStep(2);
+  };
 
   const handleSubmit = async ev => {
     ev.preventDefault(); setLoading(true); setApiError("");
@@ -351,7 +365,7 @@ function RegisterPage({ onSwitch, onLogin }) {
       const data = await res.json();
       if(!data.success) throw new Error(data.message);
       onLogin(data.data.user, data.data.token);
-    } catch(err){ setApiError(err.message||"Registration failed."); setStep(1); }
+    } catch(err){ setApiError(err.message||"Registration failed."); }
     finally { setLoading(false); }
   };
 

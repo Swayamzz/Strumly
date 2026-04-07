@@ -260,6 +260,7 @@ const updateProfile = async (req, res) => {
     if (availability) updateData.availability = availability;
     if (location) updateData.location = location;
     if (bio) updateData.bio = bio;
+    if (req.file) updateData.profilePicture = `/uploads/${req.file.filename}`;
 
     const user = await prisma.user.update({
       where: { id: req. user.id },
@@ -360,10 +361,30 @@ const changePassword = async (req, res) => {
   }
 };
 
+// @desc    Check if email/username is available
+// @route   POST /api/auth/check-availability
+// @access  Public
+const checkAvailability = async (req, res) => {
+  try {
+    const { email, username } = req.body;
+    const existing = await prisma.user.findFirst({
+      where: { OR: [{ email: email?.toLowerCase() }, { username: username?.toLowerCase() }] }
+    });
+    if (existing) {
+      const field = existing.email === email?.toLowerCase() ? 'Email' : 'Username';
+      return res.status(400).json({ success: false, message: `${field} is already taken` });
+    }
+    res.json({ success: true, message: 'Available' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 module.exports = {
   register,
   login,
   getMe,
   updateProfile,
-  changePassword
+  changePassword,
+  checkAvailability
 };

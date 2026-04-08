@@ -328,6 +328,7 @@ function RegisterPage({ onSwitch, onLogin }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const set = f => e => setForm({...form,[f]:e.target.value});
 
@@ -339,6 +340,7 @@ function RegisterPage({ onSwitch, onLogin }) {
     if(!form.password) e.password="Password is required";
     else if(form.password.length<6) e.password="Minimum 6 characters";
     if(form.password!==form.confirmPassword) e.confirmPassword="Passwords don't match";
+    if(!agreed) e.agreed="You must agree to the Terms and Conditions to continue";
     return e;
   };
 
@@ -396,6 +398,14 @@ function RegisterPage({ onSwitch, onLogin }) {
             {errors.password&&<p className="mt-1 text-xs text-red-400">{errors.password}</p>}
           </div>
           <Field label="Confirm Password *" type="password" placeholder="••••••••" value={form.confirmPassword} onChange={set("confirmPassword")} error={errors.confirmPassword}/>
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <div className={`w-5 h-5 rounded border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${agreed?"bg-amber-400 border-amber-400":"border-zinc-600 group-hover:border-amber-400/60"}`} onClick={()=>setAgreed(a=>!a)}>
+              {agreed&&<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3 h-3 text-zinc-900"><polyline points="20,6 9,17 4,12"/></svg>}
+            </div>
+            <input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)} className="hidden"/>
+            <span className="text-zinc-400 text-xs leading-relaxed">I agree to the <span className="text-amber-400 font-semibold">Terms and Conditions</span> and <span className="text-amber-400 font-semibold">Privacy Policy</span> of Strumly</span>
+          </label>
+          {errors.agreed&&<p className="text-xs text-red-400">{errors.agreed}</p>}
           {apiError&&<div className="bg-red-900/30 border border-red-700 rounded-lg px-4 py-3 text-sm text-red-400">{apiError}</div>}
           <Btn type="submit">Continue →</Btn>
         </form>

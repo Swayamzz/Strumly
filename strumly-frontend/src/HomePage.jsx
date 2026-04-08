@@ -366,9 +366,13 @@ export default function HomePage({user,onLogout}){
   const [posts,setPosts]=useState([]);
   const [stories,setStories]=useState([]);
   const [loadingPosts,setLoadingPosts]=useState(true);
+  const [loadingMore,setLoadingMore]=useState(false);
+  const [page,setPage]=useState(1);
+  const [hasMore,setHasMore]=useState(true);
   const [pendingCount,setPendingCount]=useState(0);
   const [unreadMsgCount,setUnreadMsgCount]=useState(0);
   const [showNewPost,setShowNewPost]=useState(false);
+  const loaderRef=useRef(null);
 
   useEffect(()=>{
     const load=()=>{
@@ -378,21 +382,39 @@ export default function HomePage({user,onLogout}){
     load();const iv=setInterval(load,30000);return()=>clearInterval(iv);
   },[]);
 
-  const loadFeed=useCallback(async()=>{
-    setLoadingPosts(true);
+  const LIMIT=10;
+
+  const loadFeed=useCallback(async(pageNum=1)=>{
+    if(pageNum===1)setLoadingPosts(true); else setLoadingMore(true);
     try{
-      const pr=await fetch(`${API_BASE}/posts/feed`,{headers:{Authorization:`Bearer ${token()}`}});
+      const pr=await fetch(`${API_BASE}/posts/feed?page=${pageNum}&limit=${LIMIT}`,{headers:{Authorization:`Bearer ${token()}`}});
       const pd=await pr.json();
-      if(pd.success&&pd.data.length>0)setPosts(pd.data);
-      else setPosts(MOCK_POSTS);
-      // Stories are now regular posts — filter those with media only if you have a Story model
-      // For now, show last 10 posts that have media as "stories"
-      if(pd.success)setStories(pd.data.filter(p=>getMedia(p)).slice(0,10));
-    }catch{setPosts(MOCK_POSTS);}
-    finally{setLoadingPosts(false);}
+      if(pd.success){
+        const newPosts=pd.data;
+        if(pageNum===1){
+          setPosts(newPosts.length>0?newPosts:MOCK_POSTS);
+          setStories(newPosts.filter(p=>getMedia(p)).slice(0,10));
+        }else{
+          setPosts(p=>[...p,...newPosts]);
+        }
+        setHasMore(newPosts.length===LIMIT);
+      }else if(pageNum===1){setPosts(MOCK_POSTS);}
+    }catch{if(pageNum===1)setPosts(MOCK_POSTS);}
+    finally{setLoadingPosts(false);setLoadingMore(false);}
   },[]);
 
-  useEffect(()=>{loadFeed();},[loadFeed]);
+  useEffect(()=>{loadFeed(1);},[loadFeed]);
+
+  useEffect(()=>{
+    if(!loaderRef.current)return;
+    const obs=new IntersectionObserver(entries=>{
+      if(entries[0].isIntersecting&&hasMore&&!loadingMore&&!loadingPosts){
+        setPage(p=>{const next=p+1;loadFeed(next);return next;});
+      }
+    },{threshold:1.0});
+    obs.observe(loaderRef.current);
+    return()=>obs.disconnect();
+  },[hasMore,loadingMore,loadingPosts,loadFeed]);
 
   const handleNewPost=post=>{setPosts(p=>[post,...p]);if(getMedia(post))setStories(s=>[post,...s]);};
   const handleDelete=async id=>{if(!window.confirm("Delete this post?"))return;try{await fetch(`${API_BASE}/posts/${id}`,{method:"DELETE",headers:{Authorization:`Bearer ${token()}`}});setPosts(p=>p.filter(post=>post.id!==id));}catch(e){alert("Failed to delete");}};
@@ -416,7 +438,18 @@ export default function HomePage({user,onLogout}){
         <main className="flex-1 min-h-screen overflow-y-auto pb-20 lg:pb-6">
           <div className="max-w-xl mx-auto px-4 pt-6">
             <div className="lg:hidden flex items-center justify-between mb-6"><div className="flex items-center gap-2"><MusicBars small/><span className="font-['Bebas_Neue'] text-xl tracking-widest">STRUMLY</span></div><button onClick={onLogout} className="text-zinc-500 hover:text-red-400"><Ic.Out/></button></div>
-            {activeTab==="home"&&(<><Stories currentUser={currentUser} stories={stories} onAddStory={handleNewPost}/><CreatePost user={currentUser} onPost={handleNewPost}/>{loadingPosts?<div className="flex justify-center py-12"><div className="flex items-end gap-[3px] h-8">{[1,2,3,4,5].map(i=><div key={i} className="w-[3px] bg-amber-400 rounded-full h-full" style={{animation:`bb ${.5+i*.12}s ease-in-out infinite alternate`}}/>)}</div></div>:posts.map(post=><PostCard key={post.id} post={post} currentUser={currentUser} onAvatarClick={u=>u?.id&&!u.id.startsWith("mock")&&setView({type:"otherProfile",userId:u.id})} onDelete={handleDelete}/>)}</>)}
+            {activeTab==="home"&&(<>
+              <Stories currentUser={currentUser} stories={stories} onAddStory={handleNewPost}/>
+              <CreatePost user={currentUser} onPost={handleNewPost}/>
+              {loadingPosts
+                ?<div className="flex justify-center py-12"><div className="flex items-end gap-[3px] h-8">{[1,2,3,4,5].map(i=><div key={i} className="w-[3px] bg-amber-400 rounded-full h-full" style={{animation:`bb ${.5+i*.12}s ease-in-out infinite alternate`}}/>)}</div></div>
+                :posts.map(post=><PostCard key={post.id} post={post} currentUser={currentUser} onAvatarClick={u=>u?.id&&!u.id.startsWith("mock")&&setView({type:"otherProfile",userId:u.id})} onDelete={handleDelete}/>)
+              }
+              <div ref={loaderRef} className="py-4 flex justify-center">
+                {loadingMore&&<div className="flex items-end gap-[3px] h-6">{[1,2,3,4,5].map(i=><div key={i} className="w-[3px] bg-amber-400 rounded-full h-full" style={{animation:`bb ${.5+i*.12}s ease-in-out infinite alternate`}}/>)}</div>}
+                {!hasMore&&!loadingPosts&&posts.length>0&&<p className="text-zinc-600 text-xs">You're all caught up</p>}
+              </div>
+            </>)}
             {activeTab==="search"&&<DiscoverTab currentUser={currentUser} onUserClick={u=>setView({type:"otherProfile",userId:u.id})}/>}
             {activeTab==="bands"&&<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center"><h2 className="font-['Bebas_Neue'] text-3xl text-white mb-2">BANDS & <span className="text-amber-400">COLLABS</span></h2><p className="text-zinc-400 text-sm mb-4">Browse bands looking for members.</p><button className="bg-amber-400 hover:bg-amber-300 text-zinc-900 font-bold text-sm px-6 py-2.5 rounded-lg">Coming Soon</button></div>}
             {activeTab==="feed"&&<div><div className="flex items-center gap-3 mb-4"><MusicBars/><h2 className="font-['Bebas_Neue'] text-2xl text-white">JAM <span className="text-amber-400">FEED</span></h2></div>{posts.map(post=><PostCard key={post.id} post={post} currentUser={currentUser} onAvatarClick={u=>u?.id&&!u.id.startsWith("mock")&&setView({type:"otherProfile",userId:u.id})} onDelete={handleDelete}/>)}</div>}

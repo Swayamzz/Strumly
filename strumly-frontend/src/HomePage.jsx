@@ -1,19 +1,26 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import ProfilePage from "./ProfilePage";
 import OtherProfilePage from "./OtherProfilePage";
+import MessagesPage from "./MessagesPage";
+import AdminPage from "./AdminPage";
+import BandsPage from "./BandsPage";
+import MarketplacePage from "./MarketplacePage";
 
 const API_BASE = "http://localhost:5000/api";
 const MEDIA_BASE = "http://localhost:5000";
 const token = () => localStorage.getItem("strumly_token");
 const AVATAR_COLORS = ["from-amber-400 to-orange-500","from-rose-400 to-pink-600","from-violet-400 to-purple-600","from-cyan-400 to-blue-600","from-emerald-400 to-teal-600","from-red-400 to-rose-600"];
 const MOCK_POSTS = [
-  {id:"m1",author:{id:"mock1",username:"alex_riffs",firstName:"Alex",lastName:"Rivera",instruments:["Guitar"],skillLevel:"ADVANCED"},content:"Just finished recording our first EP! Looking for a bassist 🎸",likes:47,_count:{comments:12},createdAt:new Date(Date.now()-3600000).toISOString()},
-  {id:"m2",author:{id:"mock2",username:"sara_beats",firstName:"Sara",lastName:"Kim",instruments:["Drums"],skillLevel:"PROFESSIONAL"},content:"Jam session tonight at Studio B! Free for all musicians ✨🥁",likes:93,_count:{comments:28},createdAt:new Date(Date.now()-7200000).toISOString()},
-  {id:"m3",author:{id:"mock3",username:"mike_keys",firstName:"Mike",lastName:"Patel",instruments:["Piano"],skillLevel:"INTERMEDIATE"},content:"Working on neo-soul arrangements. Anyone into D'Angelo vibes? 🎹",likes:31,_count:{comments:9},createdAt:new Date(Date.now()-18000000).toISOString()},
+  {id:"m1",author:{id:"mock1",username:"alex_riffs",firstName:"Alex",lastName:"Rivera",instruments:["Guitar"],skillLevel:"ADVANCED"},content:"Just finished recording our first EP! Looking for a bassist 🎸",media:[],likes:47,_count:{comments:12},createdAt:new Date(Date.now()-3600000).toISOString()},
+  {id:"m2",author:{id:"mock2",username:"sara_beats",firstName:"Sara",lastName:"Kim",instruments:["Drums"],skillLevel:"PROFESSIONAL"},content:"Jam session tonight at Studio B! Free for all musicians ✨🥁",media:[],likes:93,_count:{comments:28},createdAt:new Date(Date.now()-7200000).toISOString()},
+  {id:"m3",author:{id:"mock3",username:"mike_keys",firstName:"Mike",lastName:"Patel",instruments:["Piano"],skillLevel:"INTERMEDIATE"},content:"Working on neo-soul arrangements. Anyone into D'Angelo vibes? 🎹",media:[],likes:31,_count:{comments:9},createdAt:new Date(Date.now()-18000000).toISOString()},
 ];
 
+// Helper: get first media item from post
+const getMedia = (post) => post?.media?.[0] || null;
+
 function timeAgo(d){const s=(Date.now()-new Date(d))/1000;if(s<60)return"just now";if(s<3600)return Math.floor(s/60)+"m";if(s<86400)return Math.floor(s/3600)+"h";return Math.floor(s/86400)+"d";}
-function Avatar({user,size="md",ring=false}){const m={sm:"w-8 h-8 text-xs",md:"w-10 h-10 text-sm",lg:"w-14 h-14 text-base",xl:"w-20 h-20 text-xl"};const c=(user?.username||"").charCodeAt(0)%AVATAR_COLORS.length;return(<div className={`${m[size]} rounded-full bg-gradient-to-br ${AVATAR_COLORS[c]} flex items-center justify-center font-bold text-white flex-shrink-0 ${ring?"ring-2 ring-amber-400 ring-offset-2 ring-offset-zinc-900":""}`}>{((user?.firstName||user?.username||"?")[0]).toUpperCase()}</div>);}
+function Avatar({user,size="md",ring=false}){const m={sm:"w-8 h-8 text-xs",md:"w-10 h-10 text-sm",lg:"w-14 h-14 text-base",xl:"w-20 h-20 text-xl"};const c=(user?.username||"").charCodeAt(0)%AVATAR_COLORS.length;const ring_cls=ring?"ring-2 ring-amber-400 ring-offset-2 ring-offset-zinc-900":"";if(user?.profilePicture)return(<img src={`${MEDIA_BASE}${user.profilePicture}`} alt="" className={`${m[size]} rounded-full object-cover flex-shrink-0 ${ring_cls}`}/>);return(<div className={`${m[size]} rounded-full bg-gradient-to-br ${AVATAR_COLORS[c]} flex items-center justify-center font-bold text-white flex-shrink-0 ${ring_cls}`}>{((user?.firstName||user?.username||"?")[0]).toUpperCase()}</div>);}
 function MusicBars({small}){return(<div className={`flex items-end gap-[2px] ${small?"h-4":"h-6"}`}>{[1,2,3,4,5].map(i=><div key={i} className={`${small?"w-[2px]":"w-[3px]"} bg-amber-400 rounded-full`} style={{height:`${20+i*8}%`,animation:`bb ${.6+i*.15}s ease-in-out infinite alternate`,animationDelay:`${i*.1}s`}}/>)}</div>);}
 
 const Ic={
@@ -21,6 +28,7 @@ const Ic={
   Search:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
   Users:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>,
   Music:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>,
+  Msg:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
   Bell:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>,
   UserI:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   Plus:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
@@ -49,7 +57,9 @@ function ConnectButton({targetUser,currentUser}){
   return<button onClick={click} disabled={loading} className="text-xs text-amber-400 hover:bg-amber-400 hover:text-zinc-900 border border-amber-400/40 px-3 py-1 rounded-full transition-all font-semibold disabled:opacity-50">{loading?"…":"Connect"}</button>;
 }
 
+// ─── Story Viewer — uses media[0] ─────────────────────────────────────────────
 function StoryViewer({story,onClose}){
+  const media = getMedia(story);
   return(
     <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" onClick={onClose}>
       <div className="relative max-w-sm w-full mx-4" onClick={e=>e.stopPropagation()}>
@@ -59,8 +69,13 @@ function StoryViewer({story,onClose}){
             <div><p className="text-white text-sm font-semibold">{story.author.firstName} {story.author.lastName}</p><p className="text-zinc-500 text-xs">{timeAgo(story.createdAt)}</p></div>
             <button onClick={onClose} className="ml-auto text-zinc-400 hover:text-white"><Ic.X/></button>
           </div>
-          {story.mediaUrl&&story.mediaType==="video"?<video src={`${MEDIA_BASE}${story.mediaUrl}`} autoPlay loop className="w-full max-h-96 object-cover"/>:story.mediaUrl?<img src={`${MEDIA_BASE}${story.mediaUrl}`} alt="" className="w-full max-h-96 object-cover"/>:<div className="h-64 bg-gradient-to-br from-amber-400/20 to-zinc-800 flex items-center justify-center p-6"><p className="text-white text-lg text-center">{story.content}</p></div>}
-          {story.content&&story.mediaUrl&&<p className="p-4 text-zinc-300 text-sm">{story.content}</p>}
+          {media && media.type==="VIDEO"
+            ? <video src={`${MEDIA_BASE}${media.url}`} autoPlay loop className="w-full max-h-96 object-cover"/>
+            : media
+              ? <img src={`${MEDIA_BASE}${media.url}`} alt="" className="w-full max-h-96 object-cover"/>
+              : <div className="h-64 bg-gradient-to-br from-amber-400/20 to-zinc-800 flex items-center justify-center p-6"><p className="text-white text-lg text-center">{story.content}</p></div>
+          }
+          {story.content && media && <p className="p-4 text-zinc-300 text-sm">{story.content}</p>}
         </div>
       </div>
     </div>
@@ -82,7 +97,6 @@ function PostModal({user,onClose,onPost,isStory=false}){
       const fd=new FormData();
       if(text.trim())fd.append("content",text);
       if(file)fd.append("media",file);
-      fd.append("isStory",isStory?"true":"false");
       const res=await fetch(`${API_BASE}/posts`,{method:"POST",headers:{Authorization:`Bearer ${token()}`},body:fd});
       const data=await res.json();
       if(!data.success)throw new Error(data.message);
@@ -114,7 +128,7 @@ function PostModal({user,onClose,onPost,isStory=false}){
               <button onClick={()=>fileRef.current.click()} className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-amber-400 border border-zinc-700 hover:border-amber-400/50 px-3 py-2 rounded-lg transition-all"><Ic.Img/> Photo</button>
               <button onClick={()=>fileRef.current.click()} className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-amber-400 border border-zinc-700 hover:border-amber-400/50 px-3 py-2 rounded-lg transition-all"><Ic.Vid/> Video</button>
             </div>
-            <button onClick={submit} disabled={loading||(!text.trim()&&!file)} className="bg-amber-400 hover:bg-amber-300 disabled:opacity-40 text-zinc-900 font-bold text-sm px-5 py-2 rounded-lg transition-all">{loading?"Posting…":isStory?"Share Story":"Post"}</button>
+            <button onClick={submit} disabled={loading} className="bg-amber-400 hover:bg-amber-300 disabled:opacity-40 text-zinc-900 font-bold text-sm px-5 py-2 rounded-lg transition-all">{loading?"Posting…":isStory?"Share Story":"Post"}</button>
           </div>
         </div>
       </div>
@@ -142,18 +156,26 @@ function CreatePost({user,onPost}){
   );
 }
 
+// ─── PostCard — uses post.media[0] instead of post.mediaUrl ──────────────────
 function PostCard({post,currentUser,onAvatarClick,onDelete}){
   const [liked,setLiked]=useState(false);
-  // const [likes,setLikes]=useState(post.likes||0);
-  const [likes, setLikes] = useState(post._count?.likes || 0);
+  const [likes,setLikes]=useState(post._count?.likes||0);
   const [showC,setShowC]=useState(false);
   const [comments,setComments]=useState([]);
   const [comment,setComment]=useState("");
   const [loadingC,setLoadingC]=useState(false);
   const isSelf=post.author?.id===currentUser?.id;
   const isReal=!post.id.startsWith("m");
+  const media=getMedia(post); // ← use media[0]
 
-  const toggleLike=async()=>{setLiked(l=>!l);setLikes(c=>liked?c-1:c+1);if(isReal)await fetch(`${API_BASE}/posts/${post.id}/like`,{method:"POST",headers:{Authorization:`Bearer ${token()}`}}).catch(()=>{});};
+  const toggleLike=async()=>{
+    setLiked(l=>!l);
+    setLikes(c=>liked?c-1:c+1);
+    if(isReal){
+      const r=await fetch(`${API_BASE}/posts/${post.id}/like`,{method:"POST",headers:{Authorization:`Bearer ${token()}`}}).catch(()=>{});
+      if(r){const d=await r.json();if(d.success)setLikes(d.likes);}
+    }
+  };
   const loadComments=async()=>{if(!isReal)return;setLoadingC(true);try{const r=await fetch(`${API_BASE}/posts/${post.id}/comments`,{headers:{Authorization:`Bearer ${token()}`}});const d=await r.json();if(d.success)setComments(d.data);}catch(e){}finally{setLoadingC(false);}};
   const submitComment=async()=>{if(!comment.trim()||!isReal)return;try{const r=await fetch(`${API_BASE}/posts/${post.id}/comment`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token()}`},body:JSON.stringify({content:comment})});const d=await r.json();if(d.success){setComments(c=>[...c,d.data]);setComment("");}}catch(e){}};
 
@@ -175,24 +197,20 @@ function PostCard({post,currentUser,onAvatarClick,onDelete}){
           {isSelf&&isReal&&onDelete&&<button onClick={()=>onDelete(post.id)} className="text-zinc-600 hover:text-red-400 transition-colors"><Ic.Del/></button>}
         </div>
       </div>
+
       {post.content&&<div className="px-4 pb-3"><p className="text-zinc-200 text-sm leading-relaxed">{post.content}</p></div>}
-      {post.media && post.media.length > 0 && (
-  <div className="bg-zinc-800">
-    {post.media[0].type === "VIDEO"
-      ? <video
-          src={`${MEDIA_BASE}${post.media[0].url}`}
-          controls
-          className="w-full max-h-96 object-cover"
-        />
-      : <img
-          src={`${MEDIA_BASE}${post.media[0].url}`}
-          alt=""
-          className="w-full max-h-96 object-cover"
-        />
-    }
-  </div>
-)}
-      {!post.mediaUrl&&<div className="px-4 pb-3"><div className="flex items-end gap-[2px] h-7 opacity-20">{Array.from({length:60},(_,i)=><div key={i} className="flex-1 bg-amber-400 rounded-sm" style={{height:`${10+Math.sin(i*0.4)*40+Math.random()*20}%`}}/>)}</div></div>}
+
+      {/* ── Media: read from media[0] ── */}
+      {media && (
+        <div className="bg-zinc-800">
+          {media.type==="VIDEO"
+            ? <video src={`${MEDIA_BASE}${media.url}`} controls className="w-full max-h-96 object-cover"/>
+            : <img src={`${MEDIA_BASE}${media.url}`} alt="" className="w-full max-h-96 object-cover"/>
+          }
+        </div>
+      )}
+      {!media&&<div className="px-4 pb-3"><div className="flex items-end gap-[2px] h-7 opacity-20">{Array.from({length:60},(_,i)=><div key={i} className="flex-1 bg-amber-400 rounded-sm" style={{height:`${10+Math.sin(i*0.4)*40+Math.random()*20}%`}}/>)}</div></div>}
+
       <div className="px-4 pb-4 border-t border-zinc-800 pt-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -207,8 +225,11 @@ function PostCard({post,currentUser,onAvatarClick,onDelete}){
             {loadingC&&<p className="text-zinc-500 text-xs text-center">Loading…</p>}
             {comments.map(c=>(
               <div key={c.id} className="flex gap-2">
-                <Avatar user={c.author} size="sm"/>
-                <div className="flex-1 bg-zinc-800 rounded-xl px-3 py-2"><span className="text-white text-xs font-semibold">{c.author.firstName||c.author.username}</span><p className="text-zinc-300 text-xs mt-0.5">{c.content}</p></div>
+                <Avatar user={c.author||currentUser} size="sm"/>
+                <div className="flex-1 bg-zinc-800 rounded-xl px-3 py-2">
+                  <span className="text-white text-xs font-semibold">{c.author?.firstName||c.author?.username||"User"}</span>
+                  <p className="text-zinc-300 text-xs mt-0.5">{c.content}</p>
+                </div>
               </div>
             ))}
             <div className="flex gap-2">
@@ -223,6 +244,7 @@ function PostCard({post,currentUser,onAvatarClick,onDelete}){
   );
 }
 
+// ─── Stories — uses media[0] ──────────────────────────────────────────────────
 function Stories({currentUser,stories,onAddStory}){
   const [viewing,setViewing]=useState(null);
   const [showAdd,setShowAdd]=useState(false);
@@ -242,7 +264,7 @@ function Stories({currentUser,stories,onAddStory}){
           {stories.map((s,i)=>(
             <div key={i} className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group" onClick={()=>setViewing(s)}>
               <div className="p-[2px] rounded-full bg-gradient-to-tr from-amber-400 to-orange-500"><div className="bg-zinc-900 p-[2px] rounded-full"><Avatar user={s.author} size="lg"/></div></div>
-              <span className="text-xs text-zinc-400 group-hover:text-zinc-200 truncate max-w-[56px] text-center">{s.author.username}</span>
+              <span className="text-xs text-zinc-400 group-hover:text-zinc-200 truncate max-w-[56px] text-center">{s.author?.username}</span>
             </div>
           ))}
         </div>
@@ -307,12 +329,14 @@ function DiscoverTab({currentUser,onUserClick}){
   );
 }
 
-function LeftSidebar({user,activeTab,setActiveTab,onLogout,onProfile,pendingCount,onNewPost}){
-  const nav=[{id:"home",label:"Home",icon:<Ic.Home/>},{id:"search",label:"Discover",icon:<Ic.Search/>},{id:"bands",label:"Bands",icon:<Ic.Users/>},{id:"feed",label:"Jam Feed",icon:<Ic.Music/>},{id:"notifications",label:"Notifications",icon:<Ic.Bell/>,badge:pendingCount}];
+function LeftSidebar({user,activeTab,setActiveTab,onLogout,onProfile,pendingCount,onNewPost,onAdmin}){
+  const nav=[{id:"home",label:"Home",icon:<Ic.Home/>},{id:"search",label:"Discover",icon:<Ic.Search/>},{id:"messages",label:"Messages",icon:<Ic.Msg/>},{id:"bands",label:"Bands",icon:<Ic.Users/>},{id:"marketplace",label:"Marketplace",icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>},{id:"feed",label:"Jam Feed",icon:<Ic.Music/>},{id:"notifications",label:"Notifications",icon:<Ic.Bell/>,badge:pendingCount}];
   return(
     <div className="hidden lg:flex flex-col w-64 xl:w-72 h-screen sticky top-0 border-r border-zinc-800 bg-zinc-950 px-4 py-6">
       <div className="flex items-center gap-3 mb-10 px-2"><MusicBars/><span className="font-['Bebas_Neue'] text-2xl tracking-widest text-white">STRUMLY</span></div>
-      <nav className="flex-1 space-y-1">{nav.map(item=><button key={item.id} onClick={()=>setActiveTab(item.id)} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab===item.id?"bg-amber-400/10 text-amber-400 border border-amber-400/20":"text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>{item.icon}{item.label}{item.badge>0&&<span className="ml-auto w-5 h-5 bg-amber-400 text-zinc-900 text-xs font-bold rounded-full flex items-center justify-center">{item.badge}</span>}</button>)}</nav>
+      <nav className="flex-1 space-y-1">{nav.map(item=><button key={item.id} onClick={()=>setActiveTab(item.id)} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab===item.id?"bg-amber-400/10 text-amber-400 border border-amber-400/20":"text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>{item.icon}{item.label}{item.badge>0&&<span className="ml-auto w-5 h-5 bg-amber-400 text-zinc-900 text-xs font-bold rounded-full flex items-center justify-center">{item.badge}</span>}</button>)}
+      {user?.role==="ADMIN"&&<button onClick={onAdmin} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-sm font-medium transition-all text-rose-400 hover:bg-rose-400/10 border border-rose-400/20 mt-2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>Admin Panel</button>}
+      </nav>
       <button onClick={onNewPost} className="flex items-center justify-center gap-2 w-full bg-amber-400 hover:bg-amber-300 text-zinc-900 font-bold text-sm py-3 rounded-xl transition-all mb-6"><Ic.Plus/>New Post</button>
       <div onClick={onProfile} className="flex items-center gap-3 px-2 py-3 rounded-xl hover:bg-zinc-800 transition-all cursor-pointer group"><Avatar user={user} size="md"/><div className="flex-1 min-w-0"><p className="text-white text-sm font-semibold truncate">{user.firstName||user.username}</p><p className="text-zinc-500 text-xs truncate">@{user.username}</p></div><button onClick={e=>{e.stopPropagation();onLogout();}} className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-all"><Ic.Out/></button></div>
     </div>
@@ -331,8 +355,8 @@ function RightSidebar({user,onProfile,onUserClick}){
   );
 }
 
-function MobileNav({activeTab,setActiveTab,onProfile,pendingCount}){
-  return(<div className="lg:hidden fixed bottom-0 left-0 right-0 bg-zinc-950 border-t border-zinc-800 flex items-center justify-around py-3 z-50">{[{id:"home",icon:<Ic.Home/>},{id:"search",icon:<Ic.Search/>},{id:"notifications",icon:<Ic.Bell/>,badge:pendingCount},{id:"feed",icon:<Ic.Music/>},{id:"profile",icon:<Ic.UserI/>,action:onProfile}].map(item=><button key={item.id} onClick={item.action||(()=>setActiveTab(item.id))} className={`relative p-2 rounded-lg transition-colors ${activeTab===item.id?"text-amber-400":"text-zinc-500"}`}>{item.icon}{item.badge>0&&<span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-amber-400 text-zinc-900 text-[10px] font-bold rounded-full flex items-center justify-center">{item.badge}</span>}</button>)}</div>);
+function MobileNav({activeTab,setActiveTab,onProfile,pendingCount,onMessages}){
+  return(<div className="lg:hidden fixed bottom-0 left-0 right-0 bg-zinc-950 border-t border-zinc-800 flex items-center justify-around py-3 z-50">{[{id:"home",icon:<Ic.Home/>},{id:"search",icon:<Ic.Search/>},{id:"messages",icon:<Ic.Msg/>,action:onMessages},{id:"notifications",icon:<Ic.Bell/>,badge:pendingCount},{id:"profile",icon:<Ic.UserI/>,action:onProfile}].map(item=><button key={item.id} onClick={item.action||(()=>setActiveTab(item.id))} className={`relative p-2 rounded-lg transition-colors ${activeTab===item.id?"text-amber-400":"text-zinc-500"}`}>{item.icon}{item.badge>0&&<span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-amber-400 text-zinc-900 text-[10px] font-bold rounded-full flex items-center justify-center">{item.badge}</span>}</button>)}</div>);
 }
 
 export default function HomePage({user,onLogout}){
@@ -343,38 +367,52 @@ export default function HomePage({user,onLogout}){
   const [stories,setStories]=useState([]);
   const [loadingPosts,setLoadingPosts]=useState(true);
   const [pendingCount,setPendingCount]=useState(0);
+  const [unreadMsgCount,setUnreadMsgCount]=useState(0);
   const [showNewPost,setShowNewPost]=useState(false);
 
-  useEffect(()=>{const load=()=>{fetch(`${API_BASE}/follow/requests/pending`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json()).then(d=>{if(d.success)setPendingCount(d.data.length);}).catch(()=>{});};load();const iv=setInterval(load,30000);return()=>clearInterval(iv);},[]);
+  useEffect(()=>{
+    const load=()=>{
+      fetch(`${API_BASE}/follow/requests/pending`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json()).then(d=>{if(d.success)setPendingCount(d.data.length);}).catch(()=>{});
+      fetch(`${API_BASE}/messages/unread-count`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json()).then(d=>{if(d.success)setUnreadMsgCount(d.count);}).catch(()=>{});
+    };
+    load();const iv=setInterval(load,30000);return()=>clearInterval(iv);
+  },[]);
 
   const loadFeed=useCallback(async()=>{
     setLoadingPosts(true);
     try{
-      const [pr,sr]=await Promise.all([fetch(`${API_BASE}/posts/feed`,{headers:{Authorization:`Bearer ${token()}`}}),fetch(`${API_BASE}/posts/feed?stories=true`,{headers:{Authorization:`Bearer ${token()}`}})]);
-      const [pd,sd]=await Promise.all([pr.json(),sr.json()]);
-      if(pd.success&&pd.data.length>0)setPosts(pd.data);else setPosts(MOCK_POSTS);
-      if(sd.success)setStories(sd.data);
+      const pr=await fetch(`${API_BASE}/posts/feed`,{headers:{Authorization:`Bearer ${token()}`}});
+      const pd=await pr.json();
+      if(pd.success&&pd.data.length>0)setPosts(pd.data);
+      else setPosts(MOCK_POSTS);
+      // Stories are now regular posts — filter those with media only if you have a Story model
+      // For now, show last 10 posts that have media as "stories"
+      if(pd.success)setStories(pd.data.filter(p=>getMedia(p)).slice(0,10));
     }catch{setPosts(MOCK_POSTS);}
     finally{setLoadingPosts(false);}
   },[]);
 
   useEffect(()=>{loadFeed();},[loadFeed]);
 
-  const handleNewPost=post=>{if(post.isStory)setStories(s=>[post,...s]);else setPosts(p=>[post,...p]);};
+  const handleNewPost=post=>{setPosts(p=>[post,...p]);if(getMedia(post))setStories(s=>[post,...s]);};
   const handleDelete=async id=>{if(!window.confirm("Delete this post?"))return;try{await fetch(`${API_BASE}/posts/${id}`,{method:"DELETE",headers:{Authorization:`Bearer ${token()}`}});setPosts(p=>p.filter(post=>post.id!==id));}catch(e){alert("Failed to delete");}};
   const handleUserUpdate=u=>{setCurrentUser(u);localStorage.setItem("strumly_user",JSON.stringify(u));};
 
   const CSS=`@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');*{box-sizing:border-box}body{margin:0;font-family:'DM Sans',sans-serif;background:#09090b}@keyframes bb{from{transform:scaleY(.3);opacity:.5}to{transform:scaleY(1);opacity:1}}.scrollbar-hide::-webkit-scrollbar{display:none}.scrollbar-hide{-ms-overflow-style:none;scrollbar-width:none}`;
 
-  if(view.type==="myProfile")return(<><style>{CSS}</style><ProfilePage user={currentUser} onUserUpdate={handleUserUpdate} onBack={()=>setView({type:"home"})} onUserClick={u=>setView({type:"otherProfile",userId:u.id})}/></>);
+  if(view.type==="myProfile")return(<><style>{CSS}</style><ProfilePage user={currentUser} onUserUpdate={handleUserUpdate} onBack={()=>setView({type:"home"})}/></>);
   if(view.type==="otherProfile")return(<><style>{CSS}</style><OtherProfilePage userId={view.userId} currentUser={currentUser} onBack={()=>setView({type:"home"})}/></>);
+  if(view.type==="messages")return(<><style>{CSS}</style><MessagesPage currentUser={currentUser} onBack={()=>setView({type:"home"})}/></>);
+  if(view.type==="admin")return(<><style>{CSS}</style><AdminPage currentUser={currentUser} onBack={()=>setView({type:"home"})}/></>);
+  if(view.type==="bands")return(<><style>{CSS}</style><BandsPage currentUser={currentUser} onBack={()=>setView({type:"home"})}/></>);
+  if(view.type==="marketplace")return(<><style>{CSS}</style><MarketplacePage currentUser={currentUser} onBack={()=>setView({type:"home"})}/></>);
 
   return(
     <>
       <style>{CSS}</style>
       {showNewPost&&<PostModal user={currentUser} onClose={()=>setShowNewPost(false)} onPost={p=>{handleNewPost(p);setShowNewPost(false);}}/>}
       <div className="min-h-screen bg-zinc-950 text-white flex">
-        <LeftSidebar user={currentUser} activeTab={activeTab} setActiveTab={setActiveTab} onLogout={onLogout} onProfile={()=>setView({type:"myProfile"})} pendingCount={pendingCount} onNewPost={()=>setShowNewPost(true)}/>
+        <LeftSidebar user={currentUser} activeTab={activeTab} setActiveTab={tab=>{if(tab==="messages"){setView({type:"messages"});return;}if(tab==="bands"){setView({type:"bands"});return;}if(tab==="marketplace"){setView({type:"marketplace"});return;}setActiveTab(tab);}} onLogout={onLogout} onProfile={()=>setView({type:"myProfile"})} pendingCount={pendingCount} onNewPost={()=>setShowNewPost(true)} onAdmin={()=>setView({type:"admin"})}/>
         <main className="flex-1 min-h-screen overflow-y-auto pb-20 lg:pb-6">
           <div className="max-w-xl mx-auto px-4 pt-6">
             <div className="lg:hidden flex items-center justify-between mb-6"><div className="flex items-center gap-2"><MusicBars small/><span className="font-['Bebas_Neue'] text-xl tracking-widest">STRUMLY</span></div><button onClick={onLogout} className="text-zinc-500 hover:text-red-400"><Ic.Out/></button></div>
@@ -386,7 +424,7 @@ export default function HomePage({user,onLogout}){
           </div>
         </main>
         <RightSidebar user={currentUser} onProfile={()=>setView({type:"myProfile"})} onUserClick={u=>setView({type:"otherProfile",userId:u.id})}/>
-        <MobileNav activeTab={activeTab} setActiveTab={setActiveTab} onProfile={()=>setView({type:"myProfile"})} pendingCount={pendingCount}/>
+        <MobileNav activeTab={activeTab} setActiveTab={setActiveTab} onProfile={()=>setView({type:"myProfile"})} pendingCount={pendingCount} onMessages={()=>setView({type:"messages"})}/>
       </div>
     </>
   );

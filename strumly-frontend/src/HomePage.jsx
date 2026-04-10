@@ -273,31 +273,101 @@ function Stories({currentUser,stories,onAddStory}){
   );
 }
 
+const NOTIF_ICONS={
+  FOLLOW:"👤", FOLLOW_ACCEPTED:"✅", POST_LIKE:"❤️", POST_COMMENT:"💬",
+  BAND_JOIN_REQUEST:"🎸", BAND_REQUEST_ACCEPTED:"🎉", BAND_REQUEST_REJECTED:"❌"
+};
+
 function NotificationsTab(){
+  const [notifications,setNotifications]=useState([]);
   const [requests,setRequests]=useState([]);
   const [loading,setLoading]=useState(true);
   const [actioned,setActioned]=useState({});
-  const load=useCallback(()=>{setLoading(true);fetch(`${API_BASE}/follow/requests/pending`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json()).then(d=>{if(d.success)setRequests(d.data);}).catch(()=>{}).finally(()=>setLoading(false));},[]);
+  const [tab,setTab]=useState("all");
+
+  const load=useCallback(async()=>{
+    setLoading(true);
+    try{
+      const [nr,nf]=await Promise.all([
+        fetch(`${API_BASE}/notifications`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json()),
+        fetch(`${API_BASE}/follow/requests/pending`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json()),
+      ]);
+      if(nr.success)setNotifications(nr.data);
+      if(nf.success)setRequests(nf.data);
+    }catch{}finally{setLoading(false);}
+  },[]);
+
   useEffect(()=>{load();},[load]);
-  const accept=async req=>{const r=await fetch(`${API_BASE}/follow/${req.id}/accept`,{method:"POST",headers:{Authorization:`Bearer ${token()}`}});const d=await r.json();if(d.success)setActioned(a=>({...a,[req.id]:"accepted"}));};
+
+  const markRead=async id=>{
+    await fetch(`${API_BASE}/notifications/${id}/read`,{method:"PATCH",headers:{Authorization:`Bearer ${token()}`}}).catch(()=>{});
+    setNotifications(n=>n.map(x=>x.id===id?{...x,read:true}:x));
+  };
+  const markAll=async()=>{
+    await fetch(`${API_BASE}/notifications/read-all`,{method:"PATCH",headers:{Authorization:`Bearer ${token()}`}}).catch(()=>{});
+    setNotifications(n=>n.map(x=>({...x,read:true})));
+  };
+  const accept=async req=>{const r=await fetch(`${API_BASE}/follow/${req.id}/accept`,{method:"POST",headers:{Authorization:`Bearer ${token()}`}});const d=await r.json();if(d.success){setActioned(a=>({...a,[req.id]:"accepted"}));load();}};
   const decline=async req=>{const r=await fetch(`${API_BASE}/follow/${req.id}/decline`,{method:"POST",headers:{Authorization:`Bearer ${token()}`}});const d=await r.json();if(d.success)setActioned(a=>({...a,[req.id]:"declined"}));};
+
+  const unread=notifications.filter(n=>!n.read).length;
   const pending=requests.filter(r=>!actioned[r.id]).length;
+
   return(
     <div>
-      <div className="flex items-center justify-between mb-4"><h2 className="font-['Bebas_Neue'] text-2xl text-white">NOTIFICATIONS{pending>0&&<span className="text-amber-400 ml-2">({pending})</span>}</h2><button onClick={load} className="text-xs text-zinc-500 border border-zinc-700 px-3 py-1.5 rounded-lg hover:text-zinc-300 transition-all">Refresh</button></div>
-      {loading&&<div className="flex justify-center py-8"><div className="flex items-end gap-[3px] h-6">{[1,2,3,4,5].map(i=><div key={i} className="w-[3px] bg-amber-400 rounded-full h-full" style={{animation:`bb ${.5+i*.1}s ease-in-out infinite alternate`}}/>)}</div></div>}
-      {!loading&&requests.length===0&&<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center"><div className="text-4xl mb-3">🔔</div><p className="text-zinc-400">No notifications yet</p></div>}
-      <div className="space-y-3">
-        {requests.map(req=>{const done=actioned[req.id];return(
-          <div key={req.id} className={`bg-zinc-900 border rounded-xl p-4 transition-all ${done?"border-zinc-800 opacity-60":"border-zinc-800 hover:border-zinc-700"}`}>
-            <div className="flex items-center gap-3">
-              <Avatar user={req.follower} size="md" ring/>
-              <div className="flex-1"><p className="text-white text-sm"><span className="font-semibold">{req.follower.firstName||req.follower.username} {req.follower.lastName||""}</span> <span className="text-zinc-400">sent you a follow request</span></p><p className="text-zinc-500 text-xs">@{req.follower.username}{req.follower.instruments?.length>0&&` · ${req.follower.instruments.slice(0,2).join(", ")}`}</p></div>
-              {!done?(<div className="flex gap-2"><button onClick={()=>accept(req)} className="flex items-center gap-1.5 text-xs text-zinc-900 font-bold bg-amber-400 hover:bg-amber-300 px-3 py-2 rounded-lg"><Ic.Chk/>Accept</button><button onClick={()=>decline(req)} className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-red-400 border border-zinc-700 hover:border-red-500 px-3 py-2 rounded-lg"><Ic.X/>Decline</button></div>):(<span className={`text-xs font-semibold px-3 py-1.5 rounded-lg ${done==="accepted"?"text-emerald-400 bg-emerald-400/10":"text-zinc-500 bg-zinc-800"}`}>{done==="accepted"?"Accepted ✓":"Declined"}</span>)}
-            </div>
-          </div>
-        );})}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-['Bebas_Neue'] text-2xl text-white">NOTIFICATIONS{unread>0&&<span className="text-amber-400 ml-2">({unread})</span>}</h2>
+        <div className="flex gap-2">
+          {unread>0&&<button onClick={markAll} className="text-xs text-amber-400 border border-amber-400/30 px-3 py-1.5 rounded-lg hover:bg-amber-400/10 transition-all">Mark all read</button>}
+          <button onClick={load} className="text-xs text-zinc-500 border border-zinc-700 px-3 py-1.5 rounded-lg hover:text-zinc-300 transition-all">Refresh</button>
+        </div>
       </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4">
+        <button onClick={()=>setTab("all")} className={`text-xs font-semibold px-4 py-2 rounded-lg transition-all ${tab==="all"?"bg-amber-400 text-zinc-900":"border border-zinc-700 text-zinc-400 hover:text-white"}`}>All {notifications.length>0&&`(${notifications.length})`}</button>
+        <button onClick={()=>setTab("requests")} className={`text-xs font-semibold px-4 py-2 rounded-lg transition-all ${tab==="requests"?"bg-amber-400 text-zinc-900":"border border-zinc-700 text-zinc-400 hover:text-white"}`}>Follow Requests {pending>0&&`(${pending})`}</button>
+      </div>
+
+      {loading&&<div className="flex justify-center py-8"><div className="flex items-end gap-[3px] h-6">{[1,2,3,4,5].map(i=><div key={i} className="w-[3px] bg-amber-400 rounded-full h-full" style={{animation:`bb ${.5+i*.1}s ease-in-out infinite alternate`}}/>)}</div></div>}
+
+      {/* All Notifications */}
+      {!loading&&tab==="all"&&(
+        <div className="space-y-2">
+          {notifications.length===0&&<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center"><div className="text-4xl mb-3">🔔</div><p className="text-zinc-400">No notifications yet</p><p className="text-zinc-600 text-sm mt-1">Activity from followers and posts will appear here</p></div>}
+          {notifications.map(n=>(
+            <div key={n.id} onClick={()=>!n.read&&markRead(n.id)} className={`bg-zinc-900 border rounded-xl p-4 cursor-pointer transition-all hover:border-zinc-700 ${!n.read?"border-amber-400/30 bg-amber-400/5":"border-zinc-800"}`}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-lg flex-shrink-0">{NOTIF_ICONS[n.type]||"🔔"}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    {n.actor&&<Avatar user={n.actor} size="sm"/>}
+                    <p className="text-sm text-zinc-200 leading-snug">{n.message}</p>
+                  </div>
+                  <p className="text-zinc-500 text-xs mt-1">{timeAgo(n.createdAt)}</p>
+                </div>
+                {!n.read&&<div className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"/>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Follow Requests */}
+      {!loading&&tab==="requests"&&(
+        <div className="space-y-3">
+          {requests.filter(r=>!actioned[r.id]).length===0&&<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center"><div className="text-4xl mb-3">👥</div><p className="text-zinc-400">No pending follow requests</p></div>}
+          {requests.map(req=>{const done=actioned[req.id];return(
+            <div key={req.id} className={`bg-zinc-900 border rounded-xl p-4 transition-all ${done?"border-zinc-800 opacity-60":"border-zinc-800 hover:border-zinc-700"}`}>
+              <div className="flex items-center gap-3">
+                <Avatar user={req.follower} size="md" ring/>
+                <div className="flex-1"><p className="text-white text-sm"><span className="font-semibold">{req.follower.firstName||req.follower.username} {req.follower.lastName||""}</span> <span className="text-zinc-400">wants to follow you</span></p><p className="text-zinc-500 text-xs">@{req.follower.username}{req.follower.instruments?.length>0&&` · ${req.follower.instruments.slice(0,2).join(", ")}`}</p></div>
+                {!done?(<div className="flex gap-2"><button onClick={()=>accept(req)} className="flex items-center gap-1.5 text-xs text-zinc-900 font-bold bg-amber-400 hover:bg-amber-300 px-3 py-2 rounded-lg"><Ic.Chk/>Accept</button><button onClick={()=>decline(req)} className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-red-400 border border-zinc-700 hover:border-red-500 px-3 py-2 rounded-lg"><Ic.X/>Decline</button></div>):(<span className={`text-xs font-semibold px-3 py-1.5 rounded-lg ${done==="accepted"?"text-emerald-400 bg-emerald-400/10":"text-zinc-500 bg-zinc-800"}`}>{done==="accepted"?"Accepted ✓":"Declined"}</span>)}
+              </div>
+            </div>
+          );})}
+        </div>
+      )}
     </div>
   );
 }
@@ -378,6 +448,7 @@ export default function HomePage({user,onLogout}){
     const load=()=>{
       fetch(`${API_BASE}/follow/requests/pending`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json()).then(d=>{if(d.success)setPendingCount(d.data.length);}).catch(()=>{});
       fetch(`${API_BASE}/messages/unread-count`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json()).then(d=>{if(d.success)setUnreadMsgCount(d.count);}).catch(()=>{});
+      fetch(`${API_BASE}/notifications/unread-count`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json()).then(d=>{if(d.success)setPendingCount(c=>c+d.count);}).catch(()=>{});
     };
     load();const iv=setInterval(load,30000);return()=>clearInterval(iv);
   },[]);

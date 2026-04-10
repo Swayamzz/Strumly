@@ -2,6 +2,7 @@ const prisma = require('../utils/prismaClient');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { createNotification } = require('./notificationController');
 
 const uploadDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -140,6 +141,8 @@ const likePost = async (req, res) => {
 
     await prisma.postLike.create({ data: { userId, postId } });
     const count = await prisma.postLike.count({ where: { postId } });
+    const post = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
+    if (post) await createNotification({ recipientId: post.authorId, actorId: userId, type: 'POST_LIKE', message: `${req.user.firstName || req.user.username} liked your post`, postId });
     res.json({ success: true, liked: true, likes: count });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -161,6 +164,8 @@ const addComment = async (req, res) => {
       },
     });
 
+    const post = await prisma.post.findUnique({ where: { id: req.params.postId }, select: { authorId: true } });
+    if (post) await createNotification({ recipientId: post.authorId, actorId: req.user.id, type: 'POST_COMMENT', message: `${req.user.firstName || req.user.username} commented on your post`, postId: req.params.postId });
     res.status(201).json({ success: true, data: comment });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

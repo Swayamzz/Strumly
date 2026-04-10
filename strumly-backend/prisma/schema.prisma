@@ -1,5 +1,3 @@
-
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,42 +9,43 @@ datasource db {
 
 // User Model - Musicians and Band Leaders
 model User {
-  id               String    @id @default(uuid())
-  email            String    @unique
-  password         String
-  username         String    @unique
-  role             UserRole  @default(MUSICIAN)
+  id       String   @id @default(uuid())
+  email    String   @unique
+  password String
+  username String   @unique
+  role     UserRole @default(MUSICIAN)
 
-  // Profile Information
-  firstName        String?
-  lastName         String?
-  bio              String?   @db.Text
-  profilePicture   String?
-  location         String?
+  firstName      String?
+  lastName       String?
+  bio            String? @db.Text
+  profilePicture String?
+  location       String?
 
-  // Musician Specific Fields
-  instruments      String[]
-  genres           String[]
-  skillLevel       SkillLevel?
-  experience       Int?
-  availability     String?
+  instruments  String[]
+  genres       String[]
+  skillLevel   SkillLevel?
+  experience   Int?
+  availability String?
 
-  // Timestamps
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  lastLogin        DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  lastLogin DateTime?
 
-  // Relations
   bands            BandMember[]
   sentRequests     CollaborationRequest[] @relation("SentRequests")
   receivedRequests CollaborationRequest[] @relation("ReceivedRequests")
-  messages         Message[]
   mediaFiles       MediaFile[]
-  followers        Follow[]   @relation("Following")
-  following        Follow[]   @relation("Follower")
+  followers        Follow[]               @relation("Following")
+  following        Follow[]               @relation("Follower")
   posts            Post[]
   postLikes        PostLike[]
   stories          Story[]
+
+  conversations         ConversationParticipant[]
+  sentMessages          Message[]
+  listings              Listing[]
+  notifications         Notification[] @relation("NotificationRecipient")
+  triggeredNotifications Notification[] @relation("NotificationActor")
 
   @@index([email])
   @@index([username])
@@ -55,16 +54,16 @@ model User {
 
 // Band Model
 model Band {
-  id                    String    @id @default(uuid())
-  name                  String
-  description           String?   @db.Text
-  genre                 String[]
-  location              String?
-  profilePicture        String?
-  lookingFor            String[]
+  id             String   @id @default(uuid())
+  name           String
+  description    String?  @db.Text
+  genre          String[]
+  location       String?
+  profilePicture String?
+  lookingFor     String[]
 
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   members               BandMember[]
   collaborationRequests CollaborationRequest[]
@@ -80,8 +79,8 @@ model BandMember {
   role     BandRole @default(MEMBER)
   joinedAt DateTime @default(now())
 
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  band     Band     @relation(fields: [bandId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  band Band @relation(fields: [bandId], references: [id], onDelete: Cascade)
 
   @@unique([userId, bandId])
   @@map("band_members")
@@ -89,54 +88,38 @@ model BandMember {
 
 // Collaboration Requests
 model CollaborationRequest {
-  id         String        @id @default(uuid())
+  id         String  @id @default(uuid())
   senderId   String
   receiverId String?
   bandId     String?
 
-  message    String?       @db.Text
-  status     RequestStatus @default(PENDING)
+  message String?       @db.Text
+  status  RequestStatus @default(PENDING)
 
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  sender     User          @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver   User?         @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
-  band       Band?         @relation(fields: [bandId], references: [id], onDelete: Cascade)
+  sender   User  @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User? @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  band     Band? @relation(fields: [bandId], references: [id], onDelete: Cascade)
 
   @@map("collaboration_requests")
 }
 
-// Messages for real-time communication
-model Message {
-  id         String   @id @default(uuid())
-  content    String   @db.Text
-  senderId   String
-  receiverId String
-
-  isRead     Boolean  @default(false)
-  createdAt  DateTime @default(now())
-
-  sender     User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
-
-  @@index([senderId, receiverId])
-  @@map("messages")
-}
-
 // Media Files (Audio/Video samples)
 model MediaFile {
-  id          String    @id @default(uuid())
-  userId      String
-  fileName    String
-  fileUrl     String
-  fileType    MediaType
-  fileSize    Int
+  id       String    @id @default(uuid())
+  userId   String
+  fileName String
+  fileUrl  String
+  fileType MediaType
+  fileSize Int
 
   description String?
 
-  createdAt   DateTime  @default(now())
+  createdAt DateTime @default(now())
 
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("media_files")
 }
@@ -150,8 +133,8 @@ model Follow {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  follower    User         @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
-  following   User         @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@unique([followerId, followingId])
 }
@@ -170,17 +153,17 @@ model PasswordReset {
 
 // Community Posts/Feed (merged)
 model Post {
-  id        String        @id @default(cuid())
-  content   String        @default("") @db.Text
+  id        String   @id @default(cuid())
+  content   String   @default("") @db.Text
   tags      String[]
   authorId  String
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  media     PostMedia[]
-  likes     PostLike[]
-  comments  PostComment[]
+  author   User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media    PostMedia[]
+  likes    PostLike[]
+  comments PostComment[]
 
   @@map("posts")
 }
@@ -193,7 +176,7 @@ model PostMedia {
   filename String
   size     Int       @default(0)
 
-  post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 }
 
 model PostLike {
@@ -201,8 +184,8 @@ model PostLike {
   userId String
   postId String
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@unique([userId, postId])
 }
@@ -214,7 +197,7 @@ model PostComment {
   postId    String
   createdAt DateTime @default(now())
 
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 }
 
 model Story {
@@ -225,7 +208,7 @@ model Story {
   expiresAt DateTime
   createdAt DateTime  @default(now())
 
-  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
@@ -265,4 +248,103 @@ enum FollowStatus {
   PENDING
   ACCEPTED
   DECLINED
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  id             String @id @default(cuid())
+  conversationId String
+  userId         String
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  content        String
+  senderId       String
+  conversationId String
+  read           Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+// ─── Marketplace ───────────────────────────────────────────────────────────────
+
+model Listing {
+  id          String        @id @default(cuid())
+  title       String
+  description String?       @db.Text
+  price       Float
+  condition   Condition
+  category    String
+  location    String?
+  images      String[]
+  status      ListingStatus @default(AVAILABLE)
+  sellerId    String
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  seller      User          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([category])
+  @@index([status])
+  @@index([sellerId])
+}
+
+enum Condition {
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+  POOR
+}
+
+enum ListingStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  message   String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  recipientId String
+  actorId     String?
+  postId      String?
+  bandId      String?
+
+  recipient User  @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor     User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId])
+  @@index([read])
+}
+
+enum NotificationType {
+  FOLLOW
+  FOLLOW_ACCEPTED
+  POST_LIKE
+  POST_COMMENT
+  BAND_JOIN_REQUEST
+  BAND_REQUEST_ACCEPTED
+  BAND_REQUEST_REJECTED
 }

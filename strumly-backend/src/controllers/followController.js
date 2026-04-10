@@ -1,5 +1,6 @@
 
 const prisma = require('../utils/prismaClient');
+const { createNotification } = require('./notificationController');
 // POST /api/follow/:userId/follow
 const sendFollowRequest = async (req, res) => {
   try {
@@ -29,6 +30,7 @@ const sendFollowRequest = async (req, res) => {
       include: { follower: { select: { id:true, username:true, firstName:true, lastName:true } } }
     });
 
+    await createNotification({ recipientId: followingId, actorId: followerId, type: 'FOLLOW', message: `${follow.follower.firstName || follow.follower.username} sent you a follow request` });
     res.json({ success: true, message: 'Follow request sent', data: follow });
   } catch (err) {
     console.error('sendFollowRequest error:', err);
@@ -67,6 +69,7 @@ const acceptRequest = async (req, res) => {
       include: { follower: { select: { id:true, username:true, firstName:true, lastName:true } } }
     });
 
+    await createNotification({ recipientId: follow.followerId, actorId: userId, type: 'FOLLOW_ACCEPTED', message: `${req.user.firstName || req.user.username} accepted your follow request` });
     res.json({ success: true, message: 'Follow request accepted', data: updated });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

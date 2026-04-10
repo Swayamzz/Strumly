@@ -55,7 +55,7 @@ app.get('/api/db-test', async (req, res) => {
 });
 
 // Import Routes (with error handling)
-let authRoutes, userRoutes, bandRoutes, postRoutes;
+let authRoutes, userRoutes, bandRoutes, postRoutes, messageRoutes;
 const followRoutes = require('./src/routes/followRoutes');
 
 try {
@@ -86,12 +86,47 @@ try {
   console.error('❌ Error loading post routes:', error.message);
 }
 
+try {
+  messageRoutes = require('./src/routes/messageRoutes');
+  console.log('✅ Message routes loaded');
+} catch (error) {
+  console.error('❌ Error loading message routes:', error.message);
+}
+
+let adminRoutes;
+try {
+  adminRoutes = require('./src/routes/adminRoutes');
+  console.log('✅ Admin routes loaded');
+} catch (error) {
+  console.error('❌ Error loading admin routes:', error.message);
+}
+
+let listingRoutes;
+try {
+  listingRoutes = require('./src/routes/listingRoutes');
+  console.log('✅ Listing routes loaded');
+} catch (error) {
+  console.error('❌ Error loading listing routes:', error.message);
+}
+
+let notificationRoutes;
+try {
+  notificationRoutes = require('./src/routes/notificationRoutes');
+  console.log('✅ Notification routes loaded');
+} catch (error) {
+  console.error('❌ Error loading notification routes:', error.message);
+}
+
 // Use Routes (only if they loaded successfully)
-if (authRoutes) app.use('/api/auth', authRoutes);
-if (userRoutes) app.use('/api/users', userRoutes);
-if (bandRoutes) app.use('/api/bands', bandRoutes);
-if (postRoutes) app.use('/api/posts', postRoutes);
+if (authRoutes)    app.use('/api/auth',     authRoutes);
+if (userRoutes)    app.use('/api/users',    userRoutes);
+if (bandRoutes)    app.use('/api/bands',    bandRoutes);
+if (postRoutes)    app.use('/api/posts',    postRoutes);
 app.use('/api/follow', followRoutes);
+if (messageRoutes) app.use('/api/messages', messageRoutes);
+if (adminRoutes)   app.use('/api/admin',    adminRoutes);
+if (listingRoutes)      app.use('/api/listings',      listingRoutes);
+if (notificationRoutes) app.use('/api/notifications', notificationRoutes);
 
 // Error Handler Middleware
 app.use((err, req, res, next) => {

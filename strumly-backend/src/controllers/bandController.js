@@ -1,4 +1,5 @@
 const prisma = require('../utils/prismaClient');
+const { createNotification } = require('./notificationController');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -222,6 +223,11 @@ const respondToRequest = async (req, res) => {
 
     if (action === 'accept') {
       await prisma.bandMember.create({ data: { userId: request.senderId, bandId: req.params.id, role: 'MEMBER' } });
+      const band = await prisma.band.findUnique({ where: { id: req.params.id }, select: { name: true } });
+      await createNotification({ recipientId: request.senderId, actorId: userId, type: 'BAND_REQUEST_ACCEPTED', message: `Your request to join ${band?.name} was accepted!`, bandId: req.params.id });
+    } else {
+      const band = await prisma.band.findUnique({ where: { id: req.params.id }, select: { name: true } });
+      await createNotification({ recipientId: request.senderId, actorId: userId, type: 'BAND_REQUEST_REJECTED', message: `Your request to join ${band?.name} was not accepted`, bandId: req.params.id });
     }
     res.json({ success: true, message: `Request ${status.toLowerCase()}` });
   } catch (err) {

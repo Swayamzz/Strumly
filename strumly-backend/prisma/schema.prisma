@@ -39,6 +39,7 @@ model User {
   following        Follow[]               @relation("Follower")
   posts            Post[]
   postLikes        PostLike[]
+  postComments     PostComment[]
   stories          Story[]
 
   conversations         ConversationParticipant[]
@@ -198,6 +199,7 @@ model PostComment {
   createdAt DateTime @default(now())
 
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Story {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import toast from "./toast";
 import ProfilePage from "./ProfilePage";
 import OtherProfilePage from "./OtherProfilePage";
 import MessagesPage from "./MessagesPage";
@@ -10,11 +11,6 @@ const API_BASE = "http://localhost:5000/api";
 const MEDIA_BASE = "http://localhost:5000";
 const token = () => localStorage.getItem("strumly_token");
 const AVATAR_COLORS = ["from-amber-400 to-orange-500","from-rose-400 to-pink-600","from-violet-400 to-purple-600","from-cyan-400 to-blue-600","from-emerald-400 to-teal-600","from-red-400 to-rose-600"];
-const MOCK_POSTS = [
-  {id:"m1",author:{id:"mock1",username:"alex_riffs",firstName:"Alex",lastName:"Rivera",instruments:["Guitar"],skillLevel:"ADVANCED"},content:"Just finished recording our first EP! Looking for a bassist 🎸",media:[],likes:47,_count:{comments:12},createdAt:new Date(Date.now()-3600000).toISOString()},
-  {id:"m2",author:{id:"mock2",username:"sara_beats",firstName:"Sara",lastName:"Kim",instruments:["Drums"],skillLevel:"PROFESSIONAL"},content:"Jam session tonight at Studio B! Free for all musicians ✨🥁",media:[],likes:93,_count:{comments:28},createdAt:new Date(Date.now()-7200000).toISOString()},
-  {id:"m3",author:{id:"mock3",username:"mike_keys",firstName:"Mike",lastName:"Patel",instruments:["Piano"],skillLevel:"INTERMEDIATE"},content:"Working on neo-soul arrangements. Anyone into D'Angelo vibes? 🎹",media:[],likes:31,_count:{comments:9},createdAt:new Date(Date.now()-18000000).toISOString()},
-];
 
 // Helper: get first media item from post
 const getMedia = (post) => post?.media?.[0] || null;
@@ -158,12 +154,13 @@ function CreatePost({user,onPost}){
 
 // ─── PostCard — uses post.media[0] instead of post.mediaUrl ──────────────────
 function PostCard({post,currentUser,onAvatarClick,onDelete}){
-  const [liked,setLiked]=useState(false);
+  const [liked,setLiked]=useState(!!post.isLiked);
   const [likes,setLikes]=useState(post._count?.likes||0);
   const [showC,setShowC]=useState(false);
   const [comments,setComments]=useState([]);
   const [comment,setComment]=useState("");
   const [loadingC,setLoadingC]=useState(false);
+  const [submittingC,setSubmittingC]=useState(false);
   const isSelf=post.author?.id===currentUser?.id;
   const isReal=!post.id.startsWith("m");
   const media=getMedia(post); // ← use media[0]
@@ -177,7 +174,7 @@ function PostCard({post,currentUser,onAvatarClick,onDelete}){
     }
   };
   const loadComments=async()=>{if(!isReal)return;setLoadingC(true);try{const r=await fetch(`${API_BASE}/posts/${post.id}/comments`,{headers:{Authorization:`Bearer ${token()}`}});const d=await r.json();if(d.success)setComments(d.data);}catch(e){}finally{setLoadingC(false);}};
-  const submitComment=async()=>{if(!comment.trim()||!isReal)return;try{const r=await fetch(`${API_BASE}/posts/${post.id}/comment`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token()}`},body:JSON.stringify({content:comment})});const d=await r.json();if(d.success){setComments(c=>[...c,d.data]);setComment("");}}catch(e){}};
+  const submitComment=async()=>{if(!comment.trim()||!isReal||submittingC)return;setSubmittingC(true);try{const r=await fetch(`${API_BASE}/posts/${post.id}/comment`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token()}`},body:JSON.stringify({content:comment})});const d=await r.json();if(d.success){setComments(c=>[...c,d.data]);setComment("");}else{toast.error(d.message||"Failed to post comment");}}catch(e){toast.error("Failed to post comment");}finally{setSubmittingC(false);}};
 
   return(
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden mb-4 hover:border-zinc-700 transition-colors">
@@ -223,19 +220,19 @@ function PostCard({post,currentUser,onAvatarClick,onDelete}){
         {showC&&(
           <div className="mt-3 pt-3 border-t border-zinc-800 space-y-3">
             {loadingC&&<p className="text-zinc-500 text-xs text-center">Loading…</p>}
-            {comments.map(c=>(
+            {comments.map(c=>{const cu=c.user||c.author;return(
               <div key={c.id} className="flex gap-2">
-                <Avatar user={c.author||currentUser} size="sm"/>
+                <Avatar user={cu||currentUser} size="sm"/>
                 <div className="flex-1 bg-zinc-800 rounded-xl px-3 py-2">
-                  <span className="text-white text-xs font-semibold">{c.author?.firstName||c.author?.username||"User"}</span>
+                  <span className="text-white text-xs font-semibold">{cu?.firstName||cu?.username||"User"}</span>
                   <p className="text-zinc-300 text-xs mt-0.5">{c.content}</p>
                 </div>
               </div>
-            ))}
+            );})}
             <div className="flex gap-2">
               <Avatar user={currentUser} size="sm"/>
               <input value={comment} onChange={e=>setComment(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submitComment()} placeholder="Add a comment…" className="flex-1 bg-zinc-800 border border-zinc-700 rounded-full px-3 py-1.5 text-xs text-white placeholder-zinc-500 outline-none focus:border-amber-400 transition-colors"/>
-              <button onClick={submitComment} disabled={!comment.trim()} className="text-xs text-amber-400 font-semibold px-2 disabled:opacity-40">Post</button>
+              <button onClick={submitComment} disabled={!comment.trim()||submittingC} className="text-xs text-amber-400 font-semibold px-2 disabled:opacity-40">{submittingC?"…":"Post"}</button>
             </div>
           </div>
         )}
@@ -372,25 +369,94 @@ function NotificationsTab(){
   );
 }
 
+const DISC_INSTRUMENTS=["Guitar","Bass","Drums","Piano","Vocals","Violin","Saxophone","Trumpet","Keys","DJ","Ukulele","Flute"];
+const DISC_GENRES=["Rock","Jazz","Pop","Metal","Blues","Classical","Hip-Hop","Electronic","Folk","Indie","R&B","Reggae"];
+const DISC_SKILLS=["BEGINNER","INTERMEDIATE","ADVANCED","PROFESSIONAL"];
+
 function DiscoverTab({currentUser,onUserClick}){
-  const [query,setQuery]=useState("");const [results,setResults]=useState([]);const [allUsers,setAllUsers]=useState([]);const [loading,setLoading]=useState(false);const [searched,setSearched]=useState(false);
-  useEffect(()=>{fetch(`${API_BASE}/users`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json()).then(d=>{if(d.data)setAllUsers(d.data.filter(u=>u.id!==currentUser.id));}).catch(()=>{});},[]);
-  const search=async()=>{if(!query.trim())return;setLoading(true);setSearched(true);try{const r=await fetch(`${API_BASE}/users/search?instrument=${encodeURIComponent(query)}&location=${encodeURIComponent(query)}`,{headers:{Authorization:`Bearer ${token()}`}});const d=await r.json();setResults((d.data||[]).filter(u=>u.id!==currentUser.id));}catch{setResults([]);}finally{setLoading(false);}};
+  const [query,setQuery]=useState("");
+  const [instrument,setInstrument]=useState("");
+  const [genre,setGenre]=useState("");
+  const [skill,setSkill]=useState("");
+  const [location,setLocation]=useState("");
+  const [results,setResults]=useState([]);
+  const [allUsers,setAllUsers]=useState([]);
+  const [loading,setLoading]=useState(false);
+  const [searched,setSearched]=useState(false);
+  const [showFilters,setShowFilters]=useState(false);
+
+  useEffect(()=>{
+    fetch(`${API_BASE}/users`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json()).then(d=>{if(d.data)setAllUsers(d.data.filter(u=>u.id!==currentUser.id));}).catch(()=>{});
+  },[]);
+
+  const search=async()=>{
+    setLoading(true);setSearched(true);
+    try{
+      const params=new URLSearchParams();
+      if(query.trim())params.set("name",query);
+      if(instrument)params.set("instrument",instrument);
+      if(genre)params.set("genre",genre);
+      if(skill)params.set("skillLevel",skill);
+      if(location.trim())params.set("location",location);
+      const r=await fetch(`${API_BASE}/users/search?${params}`,{headers:{Authorization:`Bearer ${token()}`}});
+      const d=await r.json();
+      setResults((d.data||[]).filter(u=>u.id!==currentUser.id));
+    }catch{setResults([]);}finally{setLoading(false);}
+  };
+
+  const reset=()=>{setQuery("");setInstrument("");setGenre("");setSkill("");setLocation("");setSearched(false);setResults([]);};
   const display=searched?results:allUsers;
+  const hasFilters=instrument||genre||skill||location.trim();
+
   return(
     <div>
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 mb-4">
         <h2 className="font-['Bebas_Neue'] text-2xl text-white mb-3">DISCOVER <span className="text-amber-400">MUSICIANS</span></h2>
-        <div className="flex gap-2"><input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==="Enter"&&search()} placeholder="Search by instrument, genre, location…" className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-zinc-500 outline-none focus:border-amber-400 transition-colors"/><button onClick={search} className="bg-amber-400 hover:bg-amber-300 text-zinc-900 font-bold text-sm px-4 py-2.5 rounded-lg">Search</button></div>
+        <div className="flex gap-2 mb-3">
+          <input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==="Enter"&&search()} placeholder="Search by name or username…" className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-zinc-500 outline-none focus:border-amber-400 transition-colors"/>
+          <button onClick={()=>setShowFilters(f=>!f)} className={`border px-3 py-2.5 rounded-lg text-sm transition-all ${showFilters||hasFilters?"border-amber-400 text-amber-400 bg-amber-400/10":"border-zinc-700 text-zinc-400 hover:text-white"}`}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46"/></svg>
+          </button>
+          <button onClick={search} className="bg-amber-400 hover:bg-amber-300 text-zinc-900 font-bold text-sm px-4 py-2.5 rounded-lg">Search</button>
+        </div>
+        {showFilters&&(
+          <div className="grid grid-cols-2 gap-2 pt-3 border-t border-zinc-800">
+            <div>
+              <label className="text-zinc-500 text-xs mb-1 block">Instrument</label>
+              <select value={instrument} onChange={e=>setInstrument(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-amber-400">
+                <option value="">Any</option>{DISC_INSTRUMENTS.map(i=><option key={i} value={i}>{i}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-zinc-500 text-xs mb-1 block">Genre</label>
+              <select value={genre} onChange={e=>setGenre(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-amber-400">
+                <option value="">Any</option>{DISC_GENRES.map(g=><option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-zinc-500 text-xs mb-1 block">Skill Level</label>
+              <select value={skill} onChange={e=>setSkill(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-amber-400">
+                <option value="">Any</option>{DISC_SKILLS.map(s=><option key={s} value={s}>{s.charAt(0)+s.slice(1).toLowerCase()}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-zinc-500 text-xs mb-1 block">Location</label>
+              <input value={location} onChange={e=>setLocation(e.target.value)} placeholder="City, Country" className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-amber-400"/>
+            </div>
+            {hasFilters&&<button onClick={reset} className="col-span-2 text-xs text-zinc-500 hover:text-white text-center py-1 transition-colors">Clear filters</button>}
+          </div>
+        )}
       </div>
       {loading&&<div className="text-center text-zinc-500 py-8">Searching…</div>}
-      {!loading&&searched&&results.length===0&&<div className="text-center text-zinc-500 py-8">No musicians found.</div>}
+      {!loading&&searched&&results.length===0&&<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center"><div className="text-4xl mb-3">🎵</div><p className="text-zinc-400">No musicians found</p><p className="text-zinc-600 text-sm mt-1">Try different filters</p></div>}
       <div className="grid grid-cols-2 gap-3">{display.map((m,i)=>(
         <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition-colors">
           <div className="flex flex-col items-center text-center gap-2">
             <div className="cursor-pointer" onClick={()=>onUserClick(m)}><Avatar user={m} size="lg" ring/></div>
             <div className="cursor-pointer" onClick={()=>onUserClick(m)}><p className="text-white text-sm font-semibold hover:text-amber-400 transition-colors">{m.firstName} {m.lastName}</p><p className="text-zinc-500 text-xs">@{m.username}</p></div>
-            <div className="flex flex-wrap justify-center gap-1">{m.instruments?.map(ins=><span key={ins} className="text-xs px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded-full text-amber-400">{ins}</span>)}</div>
+            {m.skillLevel&&<span className={`text-xs font-medium ${SC[m.skillLevel]}`}>{m.skillLevel.charAt(0)+m.skillLevel.slice(1).toLowerCase()}</span>}
+            {m.location&&<p className="text-zinc-600 text-xs">📍 {m.location}</p>}
+            <div className="flex flex-wrap justify-center gap-1">{m.instruments?.slice(0,3).map(ins=><span key={ins} className="text-xs px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded-full text-amber-400">{ins}</span>)}</div>
             <ConnectButton targetUser={m} currentUser={currentUser}/>
           </div>
         </div>
@@ -495,10 +561,10 @@ export default function HomePage({user,onLogout}){
 
   if(view.type==="myProfile")return(<><style>{CSS}</style><ProfilePage user={currentUser} onUserUpdate={handleUserUpdate} onBack={()=>setView({type:"home"})}/></>);
   if(view.type==="otherProfile")return(<><style>{CSS}</style><OtherProfilePage userId={view.userId} currentUser={currentUser} onBack={()=>setView({type:"home"})}/></>);
-  if(view.type==="messages")return(<><style>{CSS}</style><MessagesPage currentUser={currentUser} onBack={()=>setView({type:"home"})}/></>);
+  if(view.type==="messages")return(<><style>{CSS}</style><MessagesPage currentUser={currentUser} onBack={()=>setView({type:"home"})} contactUser={view.contactUser}/></>);
   if(view.type==="admin")return(<><style>{CSS}</style><AdminPage currentUser={currentUser} onBack={()=>setView({type:"home"})}/></>);
   if(view.type==="bands")return(<><style>{CSS}</style><BandsPage currentUser={currentUser} onBack={()=>setView({type:"home"})}/></>);
-  if(view.type==="marketplace")return(<><style>{CSS}</style><MarketplacePage currentUser={currentUser} onBack={()=>setView({type:"home"})}/></>);
+  if(view.type==="marketplace")return(<><style>{CSS}</style><MarketplacePage currentUser={currentUser} onBack={()=>setView({type:"home"})} onMessage={seller=>setView({type:"messages",contactUser:seller})}/></>);
 
   return(
     <>
@@ -513,8 +579,10 @@ export default function HomePage({user,onLogout}){
               <Stories currentUser={currentUser} stories={stories} onAddStory={handleNewPost}/>
               <CreatePost user={currentUser} onPost={handleNewPost}/>
               {loadingPosts
-                ?<div className="flex justify-center py-12"><div className="flex items-end gap-[3px] h-8">{[1,2,3,4,5].map(i=><div key={i} className="w-[3px] bg-amber-400 rounded-full h-full" style={{animation:`bb ${.5+i*.12}s ease-in-out infinite alternate`}}/>)}</div></div>
-                :posts.map(post=><PostCard key={post.id} post={post} currentUser={currentUser} onAvatarClick={u=>u?.id&&!u.id.startsWith("mock")&&setView({type:"otherProfile",userId:u.id})} onDelete={handleDelete}/>)
+                ? <div className="space-y-4">{[1,2,3].map(i=><div key={i} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 animate-pulse"><div className="flex items-center gap-3 mb-4"><div className="w-10 h-10 rounded-full bg-zinc-800"/><div className="flex-1 space-y-2"><div className="h-3 bg-zinc-800 rounded w-32"/><div className="h-2 bg-zinc-800 rounded w-24"/></div></div><div className="space-y-2"><div className="h-3 bg-zinc-800 rounded w-full"/><div className="h-3 bg-zinc-800 rounded w-4/5"/></div><div className="h-40 bg-zinc-800 rounded-lg mt-4"/></div>)}</div>
+                : posts.length===0
+                  ? <div className="text-center py-16 bg-zinc-900 border border-zinc-800 rounded-xl"><div className="text-5xl mb-3">🎵</div><p className="text-zinc-300 font-semibold text-lg">Your feed is empty</p><p className="text-zinc-500 text-sm mt-1 mb-5">Follow musicians to see their posts here</p><button onClick={()=>setActiveTab("search")} className="bg-amber-400 hover:bg-amber-300 text-zinc-900 font-bold text-sm px-6 py-2.5 rounded-xl transition-all">Discover Musicians</button></div>
+                  : posts.map(post=><PostCard key={post.id} post={post} currentUser={currentUser} onAvatarClick={u=>u?.id&&!u.id.startsWith("mock")&&setView({type:"otherProfile",userId:u.id})} onDelete={handleDelete}/>)
               }
               <div ref={loaderRef} className="py-4 flex justify-center">
                 {loadingMore&&<div className="flex items-end gap-[3px] h-6">{[1,2,3,4,5].map(i=><div key={i} className="w-[3px] bg-amber-400 rounded-full h-full" style={{animation:`bb ${.5+i*.12}s ease-in-out infinite alternate`}}/>)}</div>}

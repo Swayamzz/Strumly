@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import toast from "./toast";
 
 const API = "http://localhost:5000/api";
 const token = () => localStorage.getItem("strumly_token");
@@ -130,7 +131,7 @@ function Users() {
     if (!confirm(`Delete @${username}? This cannot be undone.`)) return;
     const res = await fetch(`${API}/admin/users/${id}`, { method: "DELETE", headers: h() }).then(r => r.json());
     if (res.success) setUsers(u => u.filter(x => x.id !== id));
-    else alert(res.message);
+    else toast.error(res.message || "Action failed");
   };
 
   return (
@@ -199,7 +200,7 @@ function Posts() {
     if (!confirm("Delete this post? This cannot be undone.")) return;
     const res = await fetch(`${API}/admin/posts/${id}`, { method: "DELETE", headers: h() }).then(r => r.json());
     if (res.success) setPosts(p => p.filter(x => x.id !== id));
-    else alert(res.message);
+    else toast.error(res.message || "Action failed");
   };
 
   return (
@@ -253,7 +254,7 @@ function Bands() {
     if (!confirm(`Delete band "${name}"? This cannot be undone.`)) return;
     const res = await fetch(`${API}/admin/bands/${id}`, { method: "DELETE", headers: h() }).then(r => r.json());
     if (res.success) setBands(b => b.filter(x => x.id !== id));
-    else alert(res.message);
+    else toast.error(res.message || "Action failed");
   };
 
   return (

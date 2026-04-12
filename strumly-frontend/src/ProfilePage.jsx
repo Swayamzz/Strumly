@@ -15,6 +15,7 @@ const getMedia = (post) => post?.media?.[0] || null;
 function Avatar({user,size="md",ring=false}){
   const m={sm:"w-8 h-8 text-xs",md:"w-10 h-10 text-sm",lg:"w-16 h-16 text-lg",xl:"w-28 h-28 text-3xl"};
   const c=(user?.username||"").charCodeAt(0)%AVATAR_COLORS.length;
+  if(user?.profilePicture)return(<img src={`${MEDIA_BASE}${user.profilePicture}`} alt="" className={`${m[size]} rounded-full object-cover flex-shrink-0 ${ring?"ring-4 ring-amber-400 ring-offset-4 ring-offset-zinc-900":""}`}/>);
   return(<div className={`${m[size]} rounded-full bg-gradient-to-br ${AVATAR_COLORS[c]} flex items-center justify-center font-bold text-white flex-shrink-0 ${ring?"ring-4 ring-amber-400 ring-offset-4 ring-offset-zinc-900":""}`}>{((user?.firstName||user?.username||"?")[0]).toUpperCase()}</div>);
 }
 function Field({label,error,textarea,...props}){const cls=`w-full bg-zinc-800/60 border rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 ${error?"border-red-500":"border-zinc-700"}`;return(<div>{label&&<label className="block text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-1.5">{label}</label>}{textarea?<textarea {...props} rows={3} className={cls+" resize-none"}/>:<input {...props} className={cls}/>}{error&&<p className="mt-1 text-xs text-red-400">{error}</p>}</div>);}
@@ -23,10 +24,27 @@ function timeAgo(d){const s=(Date.now()-new Date(d))/1000;if(s<60)return"just no
 
 function EditModal({user,onClose,onSave}){
   const [form,setForm]=useState({firstName:user.firstName||"",lastName:user.lastName||"",bio:user.bio||"",location:user.location||"",instruments:user.instruments||[],genres:user.genres||[],skillLevel:user.skillLevel||"",experience:user.experience||"",availability:user.availability||""});
+  const [picFile,setPicFile]=useState(null);
+  const [picPreview,setPicPreview]=useState(user.profilePicture?`${MEDIA_BASE}${user.profilePicture}`:null);
   const [loading,setLoading]=useState(false);const [msg,setMsg]=useState({type:"",text:""});
   const set=f=>e=>setForm({...form,[f]:e.target.value});
-  const save=async()=>{setLoading(true);setMsg({type:"",text:""});try{const res=await fetch(`${API_BASE}/auth/profile`,{method:"PUT",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token()}`},body:JSON.stringify({...form,experience:form.experience?parseInt(form.experience):undefined})});const data=await res.json();if(!data.success)throw new Error(data.message);setMsg({type:"ok",text:"Profile updated!"});setTimeout(()=>{onSave(data.data);onClose();},800);}catch(e){setMsg({type:"err",text:e.message||"Failed"});}finally{setLoading(false);}};
-  return(<div className="fixed inset-0 z-50 flex items-center justify-center p-4"><div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose}/><div className="relative bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"><div className="sticky top-0 bg-zinc-900 border-b border-zinc-800 px-6 py-4 flex items-center justify-between rounded-t-2xl"><h2 className="font-['Bebas_Neue'] text-2xl text-white">EDIT <span className="text-amber-400">PROFILE</span></h2><button onClick={onClose} className="text-zinc-400 hover:text-white text-xl">✕</button></div><div className="p-6 space-y-4"><div className="grid grid-cols-2 gap-3"><Field label="First Name" value={form.firstName} onChange={set("firstName")} placeholder="Jane"/><Field label="Last Name" value={form.lastName} onChange={set("lastName")} placeholder="Doe"/></div><Field label="Bio" textarea value={form.bio} onChange={set("bio")} placeholder="Tell musicians about yourself…"/><Field label="Location" value={form.location} onChange={set("location")} placeholder="Kathmandu, Nepal"/><Field label="Availability" value={form.availability} onChange={set("availability")} placeholder="Weekends, Evenings…"/><div className="grid grid-cols-2 gap-3"><Field label="Experience (yrs)" type="number" value={form.experience} onChange={set("experience")} placeholder="3"/><div><label className="block text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-1.5">Skill Level</label><select value={form.skillLevel} onChange={set("skillLevel")} className="w-full bg-zinc-800/60 border border-zinc-700 rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-amber-400 transition-all"><option value="">Select</option>{SKILL_LEVELS.map(l=><option key={l} value={l}>{l.charAt(0)+l.slice(1).toLowerCase()}</option>)}</select></div></div><MultiSelect label="Instruments" options={INSTRUMENTS} selected={form.instruments} onChange={v=>setForm({...form,instruments:v})}/><MultiSelect label="Genres" options={GENRES} selected={form.genres} onChange={v=>setForm({...form,genres:v})}/>{msg.text&&<div className={`rounded-lg px-4 py-3 text-sm border ${msg.type==="ok"?"bg-emerald-900/30 border-emerald-700 text-emerald-400":"bg-red-900/30 border-red-700 text-red-400"}`}>{msg.text}</div>}<div className="flex gap-3 pt-2"><button onClick={onClose} className="flex-1 border border-zinc-600 hover:border-zinc-400 text-zinc-300 font-semibold text-sm py-3 rounded-lg">Cancel</button><button onClick={save} disabled={loading} className="flex-[2] bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-zinc-900 font-bold text-sm uppercase tracking-widest py-3 rounded-lg">{loading?"Saving…":"Save Changes"}</button></div></div></div></div>);
+  const handlePic=e=>{const f=e.target.files[0];if(!f)return;setPicFile(f);setPicPreview(URL.createObjectURL(f));};
+  const save=async()=>{setLoading(true);setMsg({type:"",text:""});try{
+    const fd=new FormData();
+    Object.entries(form).forEach(([k,v])=>{if(Array.isArray(v))v.forEach(i=>fd.append(k,i));else if(v!=="")fd.append(k,v);});
+    if(form.experience)fd.set("experience",parseInt(form.experience));
+    if(picFile)fd.append("profilePicture",picFile);
+    const res=await fetch(`${API_BASE}/auth/profile`,{method:"PUT",headers:{Authorization:`Bearer ${token()}`},body:fd});
+    const data=await res.json();if(!data.success)throw new Error(data.message);setMsg({type:"ok",text:"Profile updated!"});setTimeout(()=>{onSave(data.data);onClose();},800);}catch(e){setMsg({type:"err",text:e.message||"Failed"});}finally{setLoading(false);}};
+  return(<div className="fixed inset-0 z-50 flex items-center justify-center p-4"><div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose}/><div className="relative bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"><div className="sticky top-0 bg-zinc-900 border-b border-zinc-800 px-6 py-4 flex items-center justify-between rounded-t-2xl"><h2 className="font-['Bebas_Neue'] text-2xl text-white">EDIT <span className="text-amber-400">PROFILE</span></h2><button onClick={onClose} className="text-zinc-400 hover:text-white text-xl">✕</button></div><div className="p-6 space-y-4">
+  <div className="flex flex-col items-center gap-3">
+    <div className="relative">
+      {picPreview?<img src={picPreview} alt="" className="w-24 h-24 rounded-full object-cover ring-4 ring-amber-400 ring-offset-4 ring-offset-zinc-900"/>:<div className={`w-24 h-24 rounded-full bg-gradient-to-br ${["from-amber-400 to-orange-500","from-rose-400 to-pink-600","from-violet-400 to-purple-600","from-cyan-400 to-blue-600","from-emerald-400 to-teal-600","from-red-400 to-rose-600"][(user?.username||"").charCodeAt(0)%6]} flex items-center justify-center font-bold text-white text-3xl ring-4 ring-zinc-700 ring-offset-4 ring-offset-zinc-900`}>{((user?.firstName||user?.username||"?")[0]).toUpperCase()}</div>}
+      <label className="absolute bottom-0 right-0 bg-amber-400 hover:bg-amber-300 text-zinc-900 rounded-full w-8 h-8 flex items-center justify-center cursor-pointer transition-colors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><input type="file" accept="image/*" onChange={handlePic} className="hidden"/></label>
+    </div>
+    <p className="text-zinc-500 text-xs">Click the button to change photo</p>
+  </div>
+  <div className="grid grid-cols-2 gap-3"><Field label="First Name" value={form.firstName} onChange={set("firstName")} placeholder="Jane"/><Field label="Last Name" value={form.lastName} onChange={set("lastName")} placeholder="Doe"/></div><Field label="Bio" textarea value={form.bio} onChange={set("bio")} placeholder="Tell musicians about yourself…"/><Field label="Location" value={form.location} onChange={set("location")} placeholder="Kathmandu, Nepal"/><Field label="Availability" value={form.availability} onChange={set("availability")} placeholder="Weekends, Evenings…"/><div className="grid grid-cols-2 gap-3"><Field label="Experience (yrs)" type="number" value={form.experience} onChange={set("experience")} placeholder="3"/><div><label className="block text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-1.5">Skill Level</label><select value={form.skillLevel} onChange={set("skillLevel")} className="w-full bg-zinc-800/60 border border-zinc-700 rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-amber-400 transition-all"><option value="">Select</option>{SKILL_LEVELS.map(l=><option key={l} value={l}>{l.charAt(0)+l.slice(1).toLowerCase()}</option>)}</select></div></div><MultiSelect label="Instruments" options={INSTRUMENTS} selected={form.instruments} onChange={v=>setForm({...form,instruments:v})}/><MultiSelect label="Genres" options={GENRES} selected={form.genres} onChange={v=>setForm({...form,genres:v})}/>{msg.text&&<div className={`rounded-lg px-4 py-3 text-sm border ${msg.type==="ok"?"bg-emerald-900/30 border-emerald-700 text-emerald-400":"bg-red-900/30 border-red-700 text-red-400"}`}>{msg.text}</div>}<div className="flex gap-3 pt-2"><button onClick={onClose} className="flex-1 border border-zinc-600 hover:border-zinc-400 text-zinc-300 font-semibold text-sm py-3 rounded-lg">Cancel</button><button onClick={save} disabled={loading} className="flex-[2] bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-zinc-900 font-bold text-sm uppercase tracking-widest py-3 rounded-lg">{loading?"Saving…":"Save Changes"}</button></div></div></div></div>);
 }
 
 function PasswordModal({onClose}){
@@ -130,6 +148,9 @@ export default function ProfilePage({user,onUserUpdate,onBack}){
   const [followers,setFollowers]=useState([]);
   const [following,setFollowing]=useState([]);
   const [listsLoaded,setListsLoaded]=useState(false);
+  const [followBackLoading,setFollowBackLoading]=useState({});
+  const [followBackStatus,setFollowBackStatus]=useState({}); // userId -> "requested"|"following"
+  const [showFollowModal,setShowFollowModal]=useState(null); // "followers" | "following" | null
 
   useEffect(()=>{
     const load=async()=>{
@@ -150,6 +171,20 @@ export default function ProfilePage({user,onUserUpdate,onBack}){
   },[user.id]);
 
   const handleSave=u=>{setProfileUser(u);if(onUserUpdate)onUserUpdate(u);};
+  const handleFollowBack=async(targetId)=>{
+    setFollowBackLoading(l=>({...l,[targetId]:true}));
+    try{
+      const res=await fetch(`${API_BASE}/follow/${targetId}/follow`,{method:"POST",headers:{Authorization:`Bearer ${token()}`}});
+      const d=await res.json();
+      if(d.success){
+        setFollowBackStatus(s=>({...s,[targetId]:"requested"}));
+      } else if(d.message==="Already following"){
+        setFollowBackStatus(s=>({...s,[targetId]:"following"}));
+      } else if(d.message==="Request already sent"){
+        setFollowBackStatus(s=>({...s,[targetId]:"requested"}));
+      }
+    }catch(e){}finally{setFollowBackLoading(l=>({...l,[targetId]:false}));}
+  };
 
   useEffect(()=>{
     if((activeTab==="followers"||activeTab==="following")&&!listsLoaded){
@@ -168,6 +203,47 @@ export default function ProfilePage({user,onUserUpdate,onBack}){
     <>
       {showEdit&&<EditModal user={profileUser} onClose={()=>setShowEdit(false)} onSave={handleSave}/>}
       {showPwd&&<PasswordModal onClose={()=>setShowPwd(false)}/>}
+      {showFollowModal&&(
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={()=>setShowFollowModal(null)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm"/>
+          <div className="relative bg-zinc-900 border border-zinc-700 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] flex flex-col" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 sticky top-0 bg-zinc-900 rounded-t-2xl">
+              <div className="flex gap-1 bg-zinc-800 rounded-xl p-1">
+                <button onClick={()=>setShowFollowModal("followers")} className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${showFollowModal==="followers"?"bg-amber-400 text-zinc-900":"text-zinc-400 hover:text-white"}`}>Followers <span className="text-xs opacity-70">({followerCount})</span></button>
+                <button onClick={()=>setShowFollowModal("following")} className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${showFollowModal==="following"?"bg-amber-400 text-zinc-900":"text-zinc-400 hover:text-white"}`}>Following <span className="text-xs opacity-70">({followingCount})</span></button>
+              </div>
+              <button onClick={()=>setShowFollowModal(null)} className="text-zinc-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-800">✕</button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-4 space-y-3">
+              {!listsLoaded&&<div className="flex justify-center py-10"><div className="flex items-end gap-[3px] h-8">{[1,2,3,4,5].map(i=><div key={i} className="w-[3px] bg-amber-400 rounded-full h-full" style={{animation:`bb ${.5+i*.1}s ease-in-out infinite alternate`}}/>)}</div></div>}
+              {listsLoaded&&(showFollowModal==="followers"?followers:following).length===0&&(
+                <div className="text-center py-12"><div className="text-4xl mb-2">{showFollowModal==="followers"?"👥":"🎵"}</div><p className="text-zinc-400 text-sm">{showFollowModal==="followers"?"No followers yet":"Not following anyone yet"}</p></div>
+              )}
+              {listsLoaded&&(showFollowModal==="followers"?followers:following).map((u,i)=>{
+                const fbStatus=followBackStatus[u.id];
+                const isFollowing=following.some(f=>f.id===u.id)||fbStatus==="following";
+                return(
+                  <div key={u.id||i} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-xl hover:bg-zinc-800 transition-colors">
+                    <Avatar user={u} size="md"/>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-semibold text-sm truncate">{u.firstName||""} {u.lastName||""}</p>
+                      <p className="text-zinc-500 text-xs">@{u.username}</p>
+                      {u.instruments?.length>0&&<p className="text-amber-400 text-xs mt-0.5 truncate">{u.instruments.slice(0,2).join(" · ")}</p>}
+                    </div>
+                    {showFollowModal==="followers"&&(
+                      isFollowing
+                        ?<span className="text-xs text-emerald-400 border border-emerald-600/40 px-3 py-1 rounded-full flex-shrink-0">Following ✓</span>
+                        :fbStatus==="requested"
+                          ?<span className="text-xs text-zinc-400 border border-zinc-600 px-3 py-1 rounded-full flex-shrink-0">Requested ✓</span>
+                          :<button onClick={()=>handleFollowBack(u.id)} disabled={!!followBackLoading[u.id]} className="text-xs text-amber-400 hover:bg-amber-400 hover:text-zinc-900 border border-amber-400/40 px-3 py-1 rounded-full transition-all font-semibold disabled:opacity-50 flex-shrink-0">{followBackLoading[u.id]?"…":"Follow Back"}</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="min-h-screen bg-zinc-950">
         <div className="relative h-52 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 overflow-hidden">
           <div className="absolute inset-0 opacity-[0.05]" style={{backgroundImage:"linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",backgroundSize:"40px 40px"}}/>
@@ -196,7 +272,7 @@ export default function ProfilePage({user,onUserUpdate,onBack}){
             </div>
             <div className="flex gap-3 mt-4 flex-wrap">
               {[["Posts",posts.length],["Followers",followerCount],["Following",followingCount],profileUser.experience?["Yrs Exp",profileUser.experience]:null].filter(Boolean).map(([l,v])=>(
-                <div key={l} onClick={()=>{if(l==="Followers")setActiveTab("followers");if(l==="Following")setActiveTab("following");}}
+                <div key={l} onClick={()=>{if(l==="Followers"){if(!listsLoaded){Promise.all([fetch(`${API_BASE}/follow/${user.id}/followers`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json()),fetch(`${API_BASE}/follow/${user.id}/following`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json())]).then(([fd,fing])=>{if(fd.success)setFollowers(fd.data);if(fing.success)setFollowing(fing.data);setListsLoaded(true);});}setShowFollowModal("followers");}if(l==="Following"){if(!listsLoaded){Promise.all([fetch(`${API_BASE}/follow/${user.id}/followers`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json()),fetch(`${API_BASE}/follow/${user.id}/following`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json())]).then(([fd,fing])=>{if(fd.success)setFollowers(fd.data);if(fing.success)setFollowing(fing.data);setListsLoaded(true);});}setShowFollowModal("following");}}}
                   className={`flex flex-col items-center gap-0.5 px-4 py-3 bg-zinc-800/50 rounded-xl border border-zinc-700/50 transition-all ${(l==="Followers"||l==="Following")?"cursor-pointer hover:border-amber-400/50 hover:bg-zinc-800":""}`}>
                   <span className="font-['Bebas_Neue'] text-2xl text-amber-400">{v}</span>
                   <span className="text-xs text-zinc-500 uppercase tracking-wider">{l}</span>
@@ -247,18 +323,29 @@ export default function ProfilePage({user,onUserUpdate,onBack}){
                         <p className="text-zinc-600 text-sm mt-1">{activeTab==="followers"?"Share your profile to get followers":"Discover musicians and connect with them"}</p>
                       </div>
                     )}
-                    {listsLoaded&&(activeTab==="followers"?followers:following).map((u,i)=>(
+                    {listsLoaded&&(activeTab==="followers"?followers:following).map((u,i)=>{
+                      const fbStatus=followBackStatus[u.id];
+                      const isFollowing=following.some(f=>f.id===u.id)||fbStatus==="following";
+                      return(
                       <div key={u.id||i} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-3 hover:border-zinc-700 transition-colors">
-                        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${AVATAR_COLORS[i%AVATAR_COLORS.length]} flex items-center justify-center font-bold text-white text-base flex-shrink-0 ring-2 ring-amber-400 ring-offset-2 ring-offset-zinc-900`}>
-                          {((u.firstName||u.username||"?")[0]).toUpperCase()}
-                        </div>
+                        <Avatar user={u} size="md"/>
                         <div className="flex-1 min-w-0">
                           <p className="text-white font-semibold text-sm">{u.firstName||""} {u.lastName||""}</p>
                           <p className="text-zinc-500 text-xs">@{u.username}</p>
                           {u.instruments?.length>0&&<p className="text-amber-400 text-xs mt-0.5">{u.instruments.slice(0,3).join(" · ")}</p>}
                         </div>
-                        {u.skillLevel&&<span className="text-xs px-2.5 py-1 rounded-full border border-zinc-700 text-zinc-400 flex-shrink-0">{u.skillLevel.charAt(0)+u.skillLevel.slice(1).toLowerCase()}</span>}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {u.skillLevel&&<span className="text-xs px-2.5 py-1 rounded-full border border-zinc-700 text-zinc-400">{u.skillLevel.charAt(0)+u.skillLevel.slice(1).toLowerCase()}</span>}
+                          {activeTab==="followers"&&(
+                            isFollowing
+                              ? <span className="text-xs text-emerald-400 border border-emerald-600/40 px-3 py-1 rounded-full">Following ✓</span>
+                              : fbStatus==="requested"
+                                ? <span className="text-xs text-zinc-400 border border-zinc-600 px-3 py-1 rounded-full">Requested ✓</span>
+                                : <button onClick={()=>handleFollowBack(u.id)} disabled={!!followBackLoading[u.id]} className="text-xs text-amber-400 hover:bg-amber-400 hover:text-zinc-900 border border-amber-400/40 px-3 py-1 rounded-full transition-all font-semibold disabled:opacity-50">{followBackLoading[u.id]?"…":"Follow Back"}</button>
+                          )}
+                        </div>
                       </div>
+                      );})}
                     ))}
                   </div>
                 )}

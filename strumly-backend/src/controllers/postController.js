@@ -76,6 +76,7 @@ const createPost = async (req, res) => {
 const getFeed = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
+    const userId = req.user.id;
 
     const posts = await prisma.post.findMany({
       include: {
@@ -87,13 +88,15 @@ const getFeed = async (req, res) => {
         },
         media: true,
         _count: { select: { comments: true, likes: true } },
+        likes: { where: { userId }, select: { userId: true } },
       },
       orderBy: { createdAt: 'desc' },
       skip: (parseInt(page) - 1) * parseInt(limit),
       take: parseInt(limit),
     });
 
-    res.json({ success: true, data: posts });
+    const data = posts.map(p => ({ ...p, isLiked: p.likes.length > 0, likes: undefined }));
+    res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -102,6 +105,7 @@ const getFeed = async (req, res) => {
 // ─── Get User Posts ───────────────────────────────────────────────────────────
 const getUserPosts = async (req, res) => {
   try {
+    const userId = req.user.id;
     const posts = await prisma.post.findMany({
       where: { authorId: req.params.userId },
       include: {
@@ -113,11 +117,13 @@ const getUserPosts = async (req, res) => {
         },
         media: true,
         _count: { select: { comments: true, likes: true } },
+        likes: { where: { userId }, select: { userId: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json({ success: true, data: posts });
+    const data = posts.map(p => ({ ...p, isLiked: p.likes.length > 0, likes: undefined }));
+    res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -141,9 +147,11 @@ const likePost = async (req, res) => {
 
     await prisma.postLike.create({ data: { userId, postId } });
     const count = await prisma.postLike.count({ where: { postId } });
-    const post = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
-    if (post) await createNotification({ recipientId: post.authorId, actorId: userId, type: 'POST_LIKE', message: `${req.user.firstName || req.user.username} liked your post`, postId });
     res.json({ success: true, liked: true, likes: count });
+    try {
+      const post = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
+      if (post) await createNotification({ recipientId: post.authorId, actorId: userId, type: 'POST_LIKE', message: `${req.user.firstName || req.user.username} liked your post`, postId });
+    } catch (_) {}
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -164,9 +172,24 @@ const addComment = async (req, res) => {
       },
     });
 
-    const post = await prisma.post.findUnique({ where: { id: req.params.postId }, select: { authorId: true } });
-    if (post) await createNotification({ recipientId: post.authorId, actorId: req.user.id, type: 'POST_COMMENT', message: `${req.user.firstName || req.user.username} commented on your post`, postId: req.params.postId });
-    res.status(201).json({ success: true, data: comment });
+    // Attach the author info manually (no relation in schema yet)
+    const commentWithUser = {
+      ...comment,
+      user: {
+        id: req.user.id,
+        username: req.user.username,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        profilePicture: req.user.profilePicture || null,
+      },
+    };
+
+    res.status(201).json({ success: true, data: commentWithUser });
+    // Fire notification after response — don't let it block or break the comment
+    try {
+      const post = await prisma.post.findUnique({ where: { id: req.params.postId }, select: { authorId: true } });
+      if (post) await createNotification({ recipientId: post.authorId, actorId: req.user.id, type: 'POST_COMMENT', message: `${req.user.firstName || req.user.username} commented on your post`, postId: req.params.postId });
+    } catch (_) {}
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -180,7 +203,16 @@ const getComments = async (req, res) => {
       orderBy: { createdAt: 'asc' },
     });
 
-    res.json({ success: true, data: comments });
+    // Enrich with user data via separate query
+    const userIds = [...new Set(comments.map(c => c.userId))];
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, username: true, firstName: true, lastName: true, profilePicture: true },
+    });
+    const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+    const enriched = comments.map(c => ({ ...c, user: userMap[c.userId] || null }));
+
+    res.json({ success: true, data: enriched });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

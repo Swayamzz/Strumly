@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import toast from "./toast";
 
 const API_BASE = "http://localhost:5000/api";
 const token = () => localStorage.getItem("strumly_token");
@@ -39,7 +40,7 @@ function FollowButton({ userId, onFollowChange }) {
       const res = await fetch(`${API_BASE}/follow/${userId}/follow`, { method:"POST", headers:{ Authorization:`Bearer ${token()}` } });
       const d = await res.json();
       if(d.success){ setStatus("PENDING"); setFollowId(d.data.id); if(onFollowChange) onFollowChange("PENDING"); }
-    } catch(e) { alert(e.message); }
+    } catch(e) { toast.error(e.message || "Something went wrong"); }
     finally { setLoading(false); }
   };
 
@@ -49,7 +50,7 @@ function FollowButton({ userId, onFollowChange }) {
       await fetch(`${API_BASE}/follow/${userId}/unfollow`, { method:"POST", headers:{ Authorization:`Bearer ${token()}` } });
       setStatus("NONE"); setFollowId(null); setFollowerCount(c=>Math.max(0,c-1));
       if(onFollowChange) onFollowChange("NONE");
-    } catch(e) { alert(e.message); }
+    } catch(e) { toast.error(e.message || "Something went wrong"); }
     finally { setLoading(false); }
   };
 

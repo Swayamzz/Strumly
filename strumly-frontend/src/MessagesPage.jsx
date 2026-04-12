@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import toast from "./toast";
 
 const API_BASE = "http://localhost:5000/api";
 const token = () => localStorage.getItem("strumly_token");
@@ -122,11 +123,11 @@ function ChatWindow({ conversation, currentUser, onBack }) {
         setMessages(m=>m.map(msg=>msg.id===optimistic.id ? data.data.message : msg));
       } else {
         setMessages(m=>m.filter(msg=>msg.id!==optimistic.id));
-        alert("Failed to send: " + data.message);
+        toast.error(data.message || "Failed to send message");
       }
     } catch(e) {
       setMessages(m=>m.filter(msg=>msg.id!==optimistic.id));
-      alert("Error: " + e.message);
+      toast.error("Failed to send message");
     }
     finally { setSending(false); inputRef.current?.focus(); }
   };
@@ -292,11 +293,12 @@ function ConversationList({ conversations, activeId, onSelect, loading }) {
 }
 
 // ── MAIN MESSAGES PAGE ────────────────────────────────────────────────────────
-export default function MessagesPage({ currentUser, onBack }) {
+export default function MessagesPage({ currentUser, onBack, contactUser }) {
   const [conversations, setConversations] = useState([]);
   const [activeConv, setActiveConv] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
+  const contactOpened = useRef(false);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -317,42 +319,42 @@ export default function MessagesPage({ currentUser, onBack }) {
 
   const openOrCreateConversation = async (otherUser) => {
     setShowNew(false);
-    console.log("[MSG] openOrCreateConversation", otherUser);
     // Check if conversation already exists
     const existing = conversations.find(c => c.other?.id === otherUser.id);
-    console.log("[MSG] existing conv:", existing);
     if(existing) { setActiveConv(existing); return; }
 
     // Create by sending a placeholder — backend will create conversation
     try {
-      console.log("[MSG] sending POST /messages/send to", otherUser.id);
       const res = await fetch(`${API_BASE}/messages/send`, {
         method:"POST",
         headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token()}` },
         body: JSON.stringify({ receiverId: otherUser.id, content: "👋" })
       });
-      console.log("[MSG] response status:", res.status);
       const data = await res.json();
-      console.log("[MSG] response data:", data);
       if(data.success) {
         await loadConversations();
         // Find the new conversation
         const newConvs = await fetch(`${API_BASE}/messages/conversations`, { headers:{ Authorization:`Bearer ${token()}` } }).then(r=>r.json());
-        console.log("[MSG] newConvs:", newConvs);
         if(newConvs.success) {
           setConversations(newConvs.data);
           const conv = newConvs.data.find(c=>c.other?.id===otherUser.id);
-          console.log("[MSG] found conv:", conv);
           if(conv) setActiveConv(conv);
         }
       } else {
-        alert("Couldn't start conversation: " + data.message);
+        toast.error(data.message || "Couldn't start conversation");
       }
     } catch(e) {
-      console.error("[MSG] error:", e);
-      alert("Couldn't start conversation: "+e.message);
+      toast.error("Couldn't start conversation");
     }
   };
+
+  // Auto-open conversation with seller when navigated from Marketplace
+  useEffect(() => {
+    if (contactUser && !loading && !contactOpened.current) {
+      contactOpened.current = true;
+      openOrCreateConversation(contactUser);
+    }
+  }, [contactUser, loading, openOrCreateConversation]);
 
   const totalUnread = conversations.reduce((sum,c)=>sum+c.unreadCount,0);
 

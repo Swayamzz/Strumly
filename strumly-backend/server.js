@@ -117,6 +117,14 @@ try {
   console.error('❌ Error loading notification routes:', error.message);
 }
 
+let lyricsRoutes;
+try {
+  lyricsRoutes = require('./src/routes/lyricsRoutes');
+  console.log('✅ Lyrics routes loaded');
+} catch (error) {
+  console.error('❌ Error loading lyrics routes:', error.message);
+}
+
 // Use Routes (only if they loaded successfully)
 if (authRoutes)    app.use('/api/auth',     authRoutes);
 if (userRoutes)    app.use('/api/users',    userRoutes);
@@ -127,6 +135,7 @@ if (messageRoutes) app.use('/api/messages', messageRoutes);
 if (adminRoutes)   app.use('/api/admin',    adminRoutes);
 if (listingRoutes)      app.use('/api/listings',      listingRoutes);
 if (notificationRoutes) app.use('/api/notifications', notificationRoutes);
+if (lyricsRoutes)       app.use('/api/lyrics',        lyricsRoutes);
 
 // Error Handler Middleware
 app.use((err, req, res, next) => {

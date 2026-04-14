@@ -125,17 +125,26 @@ try {
   console.error('❌ Error loading lyrics routes:', error.message);
 }
 
+let storyRoutes;
+try {
+  storyRoutes = require('./src/routes/storyRoutes');
+  console.log('✅ Story routes loaded');
+} catch (error) {
+  console.error('❌ Error loading story routes:', error.message);
+}
+
 // Use Routes (only if they loaded successfully)
-if (authRoutes)    app.use('/api/auth',     authRoutes);
-if (userRoutes)    app.use('/api/users',    userRoutes);
-if (bandRoutes)    app.use('/api/bands',    bandRoutes);
-if (postRoutes)    app.use('/api/posts',    postRoutes);
-app.use('/api/follow', followRoutes);
-if (messageRoutes) app.use('/api/messages', messageRoutes);
-if (adminRoutes)   app.use('/api/admin',    adminRoutes);
+if (authRoutes)         app.use('/api/auth',          authRoutes);
+if (userRoutes)         app.use('/api/users',         userRoutes);
+if (bandRoutes)         app.use('/api/bands',         bandRoutes);
+if (postRoutes)         app.use('/api/posts',         postRoutes);
+app.use('/api/follow',  followRoutes);
+if (messageRoutes)      app.use('/api/messages',      messageRoutes);
+if (adminRoutes)        app.use('/api/admin',         adminRoutes);
 if (listingRoutes)      app.use('/api/listings',      listingRoutes);
 if (notificationRoutes) app.use('/api/notifications', notificationRoutes);
 if (lyricsRoutes)       app.use('/api/lyrics',        lyricsRoutes);
+if (storyRoutes)        app.use('/api/stories',       storyRoutes);
 
 // Error Handler Middleware
 app.use((err, req, res, next) => {

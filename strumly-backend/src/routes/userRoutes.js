@@ -4,13 +4,17 @@ const {
   getAllUsers,
   getUserById,
   createUser,
-  searchUsers
+  searchUsers,
+  getUserStats,
+  searchByUsername,
 } = require('../controllers/userController');
 
 // Routes
-router.get('/', getAllUsers);
-router.get('/search', searchUsers);
-router.get('/:id', getUserById);
-router.post('/', createUser);
+router.get('/',              getAllUsers);
+router.get('/search',        searchUsers);
+router.get('/find',          searchByUsername);
+router.get('/:id',           getUserById);
+router.get('/:id/stats',     getUserStats);
+router.post('/',             createUser);
 
 module.exports = router;

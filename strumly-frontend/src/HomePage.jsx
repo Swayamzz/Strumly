@@ -7,6 +7,7 @@ import AdminPage from "./AdminPage";
 import BandsPage from "./BandsPage";
 import MarketplacePage from "./MarketplacePage";
 import LyricsPage from "./LyricsPage";
+import ExplorePage from "./ExplorePage";
 
 const API_BASE = "http://localhost:5000/api";
 const MEDIA_BASE = "http://localhost:5000";
@@ -567,13 +568,14 @@ export default function HomePage({user,onLogout}){
   if(view.type==="bands")return(<><style>{CSS}</style><BandsPage currentUser={currentUser} onBack={()=>setView({type:"home"})}/></>);
   if(view.type==="marketplace")return(<><style>{CSS}</style><MarketplacePage currentUser={currentUser} onBack={()=>setView({type:"home"})} onMessage={seller=>setView({type:"messages",contactUser:seller})}/></>);
   if(view.type==="lyrics")return(<><style>{CSS}</style><LyricsPage onBack={()=>setView({type:"home"})}/></>);
+  if(view.type==="explore")return(<><style>{CSS}</style><ExplorePage onBack={()=>setView({type:"home"})}/></>);
 
   return(
     <>
       <style>{CSS}</style>
       {showNewPost&&<PostModal user={currentUser} onClose={()=>setShowNewPost(false)} onPost={p=>{handleNewPost(p);setShowNewPost(false);}}/>}
       <div className="min-h-screen bg-zinc-950 text-white flex">
-        <LeftSidebar user={currentUser} activeTab={activeTab} setActiveTab={tab=>{if(tab==="messages"){setView({type:"messages"});return;}if(tab==="bands"){setView({type:"bands"});return;}if(tab==="marketplace"){setView({type:"marketplace"});return;}if(tab==="lyrics"){setView({type:"lyrics"});return;}setActiveTab(tab);}} onLogout={onLogout} onProfile={()=>setView({type:"myProfile"})} pendingCount={pendingCount} onNewPost={()=>setShowNewPost(true)} onAdmin={()=>setView({type:"admin"})}/>
+        <LeftSidebar user={currentUser} activeTab={activeTab} setActiveTab={tab=>{if(tab==="messages"){setView({type:"messages"});return;}if(tab==="bands"){setView({type:"bands"});return;}if(tab==="marketplace"){setView({type:"marketplace"});return;}if(tab==="lyrics"){setView({type:"lyrics"});return;}if(tab==="explore"){setView({type:"explore"});return;}setActiveTab(tab);}} onLogout={onLogout} onProfile={()=>setView({type:"myProfile"})} pendingCount={pendingCount} onNewPost={()=>setShowNewPost(true)} onAdmin={()=>setView({type:"admin"})}/>
         <main className="flex-1 min-h-screen overflow-y-auto pb-20 lg:pb-6">
           <div className="max-w-xl mx-auto px-4 pt-6">
             <div className="lg:hidden flex items-center justify-between mb-6"><div className="flex items-center gap-2"><MusicBars small/><span className="font-['Bebas_Neue'] text-xl tracking-widest">STRUMLY</span></div><button onClick={onLogout} className="text-zinc-500 hover:text-red-400"><Ic.Out/></button></div>

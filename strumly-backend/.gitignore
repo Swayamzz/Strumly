@@ -1,5 +1,19 @@
-node_modules
-# Keep environment variables out of version control
+node_modules/
+
+# Environment variables
 .env
 
+# Prisma generated client
 /src/generated/prisma
+
+# Uploaded user files (images, videos)
+uploads/*
+!uploads/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db

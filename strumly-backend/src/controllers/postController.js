@@ -243,4 +243,19 @@ const deletePost = async (req, res) => {
   }
 };
 
-module.exports = { upload, createPost, getFeed, getUserPosts, likePost, addComment, getComments, deletePost };
+// ─── Delete Comment ───────────────────────────────────────────────────────────
+const deleteComment = async (req, res) => {
+  try {
+    const comment = await prisma.postComment.findUnique({ where: { id: req.params.commentId } });
+    if (!comment) return res.status(404).json({ success: false, message: 'Comment not found' });
+    if (comment.userId !== req.user.id)
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this comment' });
+
+    await prisma.postComment.delete({ where: { id: req.params.commentId } });
+    res.json({ success: true, message: 'Comment deleted' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { upload, createPost, getFeed, getUserPosts, likePost, addComment, getComments, deletePost, deleteComment };

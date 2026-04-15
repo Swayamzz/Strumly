@@ -134,6 +134,12 @@ function Users() {
     else toast.error(res.message || "Action failed");
   };
 
+  const toggleBan = async (id, isBanned) => {
+    const res = await fetch(`${API}/admin/users/${id}/ban`, { method: "PATCH", headers: h() }).then(r => r.json());
+    if (res.success) setUsers(u => u.map(x => x.id === id ? { ...x, isBanned: !isBanned } : x));
+    else toast.error(res.message || "Action failed");
+  };
+
   return (
     <div className="space-y-4">
       <h2 className="font-['Bebas_Neue'] text-3xl text-white tracking-wide">USER <span className="text-amber-400">MANAGEMENT</span></h2>
@@ -172,6 +178,10 @@ function Users() {
                     <option value="BAND_LEADER">Band Leader</option>
                     <option value="ADMIN">Admin</option>
                   </select>
+                  <button onClick={() => toggleBan(u.id, u.isBanned)}
+                    className={`p-1.5 rounded-lg transition-colors text-xs font-semibold px-2 ${u.isBanned ? "text-emerald-400 border border-emerald-400/30 hover:bg-emerald-400/10" : "text-orange-400 border border-orange-400/30 hover:bg-orange-400/10"}`}>
+                    {u.isBanned ? "Unban" : "Ban"}
+                  </button>
                   <button onClick={() => remove(u.id, u.username)}
                     className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>

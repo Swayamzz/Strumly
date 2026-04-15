@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const { upload, createPost, getFeed, getUserPosts, likePost, addComment, getComments, deletePost, deleteComment, getTrendingPosts } = require('../controllers/postController');
+const { upload, createPost, getFeed, getUserPosts, likePost, addComment, getComments, deletePost, deleteComment, getTrendingPosts, searchPosts } = require('../controllers/postController');
 
 router.get('/feed',              protect, getFeed);
 router.get('/trending',          getTrendingPosts);
+router.get('/search',            searchPosts);
 router.post('/',                 protect, upload.single('media'), createPost);
 router.get('/user/:userId',      protect, getUserPosts);
 router.post('/:postId/like',     protect, likePost);

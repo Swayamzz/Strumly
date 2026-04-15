@@ -258,6 +258,30 @@ const deleteComment = async (req, res) => {
   }
 };
 
+// ─── Search Posts ─────────────────────────────────────────────────────────────
+const searchPosts = async (req, res) => {
+  try {
+    const { q, tag } = req.query;
+    const where = {};
+    if (q && q.trim()) where.content = { contains: q.trim(), mode: 'insensitive' };
+    if (tag) where.tags = { has: tag };
+
+    const posts = await prisma.post.findMany({
+      where,
+      include: {
+        author: { select: { id: true, username: true, firstName: true, lastName: true, profilePicture: true, instruments: true, skillLevel: true } },
+        media: true,
+        _count: { select: { likes: true, comments: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    });
+    res.json({ success: true, count: posts.length, data: posts });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // ─── Trending Posts ───────────────────────────────────────────────────────────
 const getTrendingPosts = async (req, res) => {
   try {
@@ -278,4 +302,4 @@ const getTrendingPosts = async (req, res) => {
   }
 };
 
-module.exports = { upload, createPost, getFeed, getUserPosts, likePost, addComment, getComments, deletePost, deleteComment, getTrendingPosts };
+module.exports = { upload, createPost, getFeed, getUserPosts, likePost, addComment, getComments, deletePost, deleteComment, getTrendingPosts, searchPosts };

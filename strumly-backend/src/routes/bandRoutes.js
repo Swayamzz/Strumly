@@ -4,7 +4,7 @@ const { protect } = require('../Middleware/auth');
 const {
   bandUpload, getAllBands, getMyBands, getBandById, createBand, updateBand, deleteBand,
   sendJoinRequest, getJoinRequests, respondToRequest, removeMember, leaveBand,
-  getMySentRequests, searchBands,
+  getMySentRequests, searchBands, inviteUser,
 } = require('../controllers/bandController');
 
 router.get('/my',                                protect, getMyBands);
@@ -20,5 +20,6 @@ router.get('/:id/requests',                      protect, getJoinRequests);
 router.post('/:id/requests/:reqId/respond',      protect, respondToRequest);
 router.delete('/:id/members/:userId',            protect, removeMember);
 router.delete('/:id/leave',                      protect, leaveBand);
+router.post('/:id/invite/:userId',               protect, inviteUser);
 
 module.exports = router;

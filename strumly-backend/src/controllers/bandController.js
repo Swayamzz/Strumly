@@ -318,8 +318,39 @@ const searchBands = async (req, res) => {
   }
 };
 
+// POST /api/bands/:id/invite/:userId — leader invites a user directly
+const inviteUser = async (req, res) => {
+  try {
+    const leaderId = req.user.id;
+    const { id: bandId, userId: inviteeId } = req.params;
+
+    const leader = await prisma.bandMember.findUnique({
+      where: { userId_bandId: { userId: leaderId, bandId } }
+    });
+    if (!leader || leader.role !== 'LEADER')
+      return res.status(403).json({ success: false, message: 'Only the band leader can invite members' });
+
+    const alreadyMember = await prisma.bandMember.findUnique({
+      where: { userId_bandId: { userId: inviteeId, bandId } }
+    });
+    if (alreadyMember) return res.status(400).json({ success: false, message: 'User is already a member' });
+
+    const band = await prisma.band.findUnique({ where: { id: bandId }, select: { name: true } });
+    await createNotification({
+      recipientId: inviteeId, actorId: leaderId,
+      type: 'BAND_JOIN_REQUEST',
+      message: `You have been invited to join ${band?.name}!`,
+      bandId
+    });
+
+    res.json({ success: true, message: 'Invitation sent' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   bandUpload, getAllBands, getMyBands, getBandById, createBand, updateBand, deleteBand,
   sendJoinRequest, getJoinRequests, respondToRequest, removeMember, leaveBand,
-  getMySentRequests, searchBands,
+  getMySentRequests, searchBands, inviteUser,
 };

@@ -9,6 +9,7 @@ router.use(protect, authorize('ADMIN'));
 router.get('/dashboard',          admin.getDashboardStats);
 router.get('/users',              admin.getUsers);
 router.patch('/users/:id/role',   admin.updateUserRole);
+router.patch('/users/:id/ban',    admin.toggleBanUser);
 router.delete('/users/:id',       admin.deleteUser);
 router.get('/posts',              admin.getPosts);
 router.delete('/posts/:id',       admin.deletePost);

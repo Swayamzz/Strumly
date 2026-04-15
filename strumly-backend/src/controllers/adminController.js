@@ -235,4 +235,22 @@ const getAnalytics = async (req, res) => {
   }
 };
 
-module.exports = { getDashboardStats, getUsers, updateUserRole, deleteUser, getPosts, deletePost, getBands, deleteBand, getPendingFollows, getAnalytics };
+// PATCH /api/admin/users/:id/ban — ban or unban a user
+const toggleBanUser = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (user.role === 'ADMIN') return res.status(400).json({ success: false, message: 'Cannot ban an admin' });
+
+    const updated = await prisma.user.update({
+      where: { id: req.params.id },
+      data: { isBanned: !user.isBanned },
+      select: { id: true, username: true, isBanned: true }
+    });
+    res.json({ success: true, data: updated, message: updated.isBanned ? 'User banned' : 'User unbanned' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { getDashboardStats, getUsers, updateUserRole, deleteUser, getPosts, deletePost, getBands, deleteBand, getPendingFollows, getAnalytics, toggleBanUser };

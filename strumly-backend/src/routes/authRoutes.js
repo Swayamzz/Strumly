@@ -10,7 +10,8 @@ const {
   getMe,
   updateProfile,
   changePassword,
-  checkAvailability
+  checkAvailability,
+  deleteAccount
 } = require('../controllers/authController');
 const { protect } = require('../Middleware/auth');
 
@@ -36,7 +37,8 @@ router.post('/check-availability', checkAvailability);
 // Protected routes
 router.get('/me', protect, getMe);
 router.put('/profile', protect, avatarUpload.single('profilePicture'), updateProfile);
-router.put('/change-password', protect, changePassword); 
+router.put('/change-password', protect, changePassword);
+router.delete('/account',      protect, deleteAccount);
 
 router.post('/forgot-password', forgotPassword);
 router.post('/verify-otp',      verifyOTP);

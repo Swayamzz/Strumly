@@ -380,11 +380,32 @@ const checkAvailability = async (req, res) => {
   }
 };
 
+// DELETE /api/auth/account — delete own account
+const deleteAccount = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ success: false, message: 'Password required to delete account' });
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const bcrypt = require('bcryptjs');
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(401).json({ success: false, message: 'Incorrect password' });
+
+    await prisma.user.delete({ where: { id: req.user.id } });
+    res.json({ success: true, message: 'Account deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error deleting account' });
+  }
+};
+
 module.exports = {
   register,
   login,
   getMe,
   updateProfile,
   changePassword,
-  checkAvailability
+  checkAvailability,
+  deleteAccount
 };

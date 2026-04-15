@@ -47,6 +47,7 @@ model User {
   listings              Listing[]
   notifications         Notification[] @relation("NotificationRecipient")
   triggeredNotifications Notification[] @relation("NotificationActor")
+  savedPosts            SavedPost[]
 
   @@index([email])
   @@index([username])
@@ -161,10 +162,11 @@ model Post {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  author   User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  media    PostMedia[]
-  likes    PostLike[]
-  comments PostComment[]
+  author     User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media      PostMedia[]
+  likes      PostLike[]
+  comments   PostComment[]
+  savedBy    SavedPost[]
 
   @@map("posts")
 }
@@ -211,6 +213,20 @@ model Story {
   createdAt DateTime  @default(now())
 
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+// ─── Saved / Bookmarked Posts ─────────────────────────────────────────────────
+model SavedPost {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  savedAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("saved_posts")
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────

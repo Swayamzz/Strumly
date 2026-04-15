@@ -133,6 +133,14 @@ try {
   console.error('❌ Error loading story routes:', error.message);
 }
 
+let bookmarkRoutes;
+try {
+  bookmarkRoutes = require('./src/routes/bookmarkRoutes');
+  console.log('✅ Bookmark routes loaded');
+} catch (error) {
+  console.error('❌ Error loading bookmark routes:', error.message);
+}
+
 // Use Routes (only if they loaded successfully)
 if (authRoutes)         app.use('/api/auth',          authRoutes);
 if (userRoutes)         app.use('/api/users',         userRoutes);
@@ -145,6 +153,7 @@ if (listingRoutes)      app.use('/api/listings',      listingRoutes);
 if (notificationRoutes) app.use('/api/notifications', notificationRoutes);
 if (lyricsRoutes)       app.use('/api/lyrics',        lyricsRoutes);
 if (storyRoutes)        app.use('/api/stories',       storyRoutes);
+if (bookmarkRoutes)     app.use('/api/bookmarks',     bookmarkRoutes);
 
 // Error Handler Middleware
 app.use((err, req, res, next) => {

@@ -8,6 +8,7 @@ import BandsPage from "./BandsPage";
 import MarketplacePage from "./MarketplacePage";
 import LyricsPage from "./LyricsPage";
 import ExplorePage from "./ExplorePage";
+import SavedPostsPage from "./SavedPostsPage";
 
 const API_BASE = "http://localhost:5000/api";
 const MEDIA_BASE = "http://localhost:5000";
@@ -473,7 +474,7 @@ function DiscoverTab({currentUser,onUserClick}){
 }
 
 function LeftSidebar({user,activeTab,setActiveTab,onLogout,onProfile,pendingCount,onNewPost,onAdmin}){
-  const nav=[{id:"home",label:"Home",icon:<Ic.Home/>},{id:"search",label:"Discover",icon:<Ic.Search/>},{id:"messages",label:"Messages",icon:<Ic.Msg/>},{id:"bands",label:"Bands",icon:<Ic.Users/>},{id:"marketplace",label:"Marketplace",icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>},{id:"feed",label:"Jam Feed",icon:<Ic.Music/>},{id:"notifications",label:"Notifications",icon:<Ic.Bell/>,badge:pendingCount},{id:"lyrics",label:"AI Lyrics",icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>}];
+  const nav=[{id:"home",label:"Home",icon:<Ic.Home/>},{id:"search",label:"Discover",icon:<Ic.Search/>},{id:"messages",label:"Messages",icon:<Ic.Msg/>},{id:"bands",label:"Bands",icon:<Ic.Users/>},{id:"marketplace",label:"Marketplace",icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>},{id:"saved",label:"Saved Posts",icon:<Ic.Bm f={false}/>},{id:"feed",label:"Jam Feed",icon:<Ic.Music/>},{id:"notifications",label:"Notifications",icon:<Ic.Bell/>,badge:pendingCount},{id:"lyrics",label:"AI Lyrics",icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>}];
   return(
     <div className="hidden lg:flex flex-col w-64 xl:w-72 h-screen sticky top-0 border-r border-zinc-800 bg-zinc-950 px-4 py-6">
       <div className="flex items-center gap-3 mb-10 px-2"><MusicBars/><span className="font-['Bebas_Neue'] text-2xl tracking-widest text-white">STRUMLY</span></div>
@@ -574,13 +575,14 @@ export default function HomePage({user,onLogout}){
   if(view.type==="marketplace")return(<><style>{CSS}</style><MarketplacePage currentUser={currentUser} onBack={()=>setView({type:"home"})} onMessage={seller=>setView({type:"messages",contactUser:seller})}/></>);
   if(view.type==="lyrics")return(<><style>{CSS}</style><LyricsPage onBack={()=>setView({type:"home"})}/></>);
   if(view.type==="explore")return(<><style>{CSS}</style><ExplorePage onBack={()=>setView({type:"home"})}/></>);
+  if(view.type==="saved")return(<><style>{CSS}</style><div className="min-h-screen bg-zinc-950"><button onClick={()=>setView({type:"home"})} className="fixed top-4 left-4 text-zinc-400 hover:text-white z-10 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm">← Back</button><SavedPostsPage/></div></>);
 
   return(
     <>
       <style>{CSS}</style>
       {showNewPost&&<PostModal user={currentUser} onClose={()=>setShowNewPost(false)} onPost={p=>{handleNewPost(p);setShowNewPost(false);}}/>}
       <div className="min-h-screen bg-zinc-950 text-white flex">
-        <LeftSidebar user={currentUser} activeTab={activeTab} setActiveTab={tab=>{if(tab==="messages"){setView({type:"messages"});return;}if(tab==="bands"){setView({type:"bands"});return;}if(tab==="marketplace"){setView({type:"marketplace"});return;}if(tab==="lyrics"){setView({type:"lyrics"});return;}if(tab==="explore"){setView({type:"explore"});return;}setActiveTab(tab);}} onLogout={onLogout} onProfile={()=>setView({type:"myProfile"})} pendingCount={pendingCount} onNewPost={()=>setShowNewPost(true)} onAdmin={()=>setView({type:"admin"})}/>
+        <LeftSidebar user={currentUser} activeTab={activeTab} setActiveTab={tab=>{if(tab==="messages"){setView({type:"messages"});return;}if(tab==="bands"){setView({type:"bands"});return;}if(tab==="marketplace"){setView({type:"marketplace"});return;}if(tab==="lyrics"){setView({type:"lyrics"});return;}if(tab==="explore"){setView({type:"explore"});return;}if(tab==="saved"){setView({type:"saved"});return;}setActiveTab(tab);}} onLogout={onLogout} onProfile={()=>setView({type:"myProfile"})} pendingCount={pendingCount} onNewPost={()=>setShowNewPost(true)} onAdmin={()=>setView({type:"admin"})}/>
         <main className="flex-1 min-h-screen overflow-y-auto pb-20 lg:pb-6">
           <div className="max-w-xl mx-auto px-4 pt-6">
             <div className="lg:hidden flex items-center justify-between mb-6"><div className="flex items-center gap-2"><MusicBars small/><span className="font-['Bebas_Neue'] text-xl tracking-widest">STRUMLY</span></div><button onClick={onLogout} className="text-zinc-500 hover:text-red-400"><Ic.Out/></button></div>

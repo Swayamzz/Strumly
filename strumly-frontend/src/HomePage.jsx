@@ -202,7 +202,7 @@ function PostCard({post,currentUser,onAvatarClick,onDelete}){
         </div>
       </div>
 
-      {post.content&&<div className="px-4 pb-3"><p className="text-zinc-200 text-sm leading-relaxed">{post.content}</p></div>}
+      {post.content&&<div className="px-4 pb-3"><p className="text-zinc-200 text-sm leading-relaxed">{post.content}</p>{post.tags?.length>0&&<div className="flex flex-wrap gap-1 mt-2">{post.tags.map(t=><span key={t} className="text-xs text-amber-400 hover:underline cursor-pointer">#{t}</span>)}</div>}</div>}
 
       {/* ── Media: read from media[0] ── */}
       {media && (
@@ -222,6 +222,7 @@ function PostCard({post,currentUser,onAvatarClick,onDelete}){
             <button onClick={()=>{if(!showC)loadComments();setShowC(s=>!s);}} className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-amber-400 transition-colors"><Ic.Chat/><span>{post._count?.comments||comments.length||0}</span></button>
           </div>
           <div className="flex items-center gap-3">
+            <button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);toast.success("Link copied!");}} className="text-zinc-400 hover:text-blue-400 transition-colors"><Ic.Send/></button>
             <button onClick={toggleBookmark} className={`transition-colors ${saved?"text-amber-400":"text-zinc-400 hover:text-amber-400"}`}><Ic.Bm f={saved}/></button>
             {!isSelf&&<ConnectButton targetUser={post.author} currentUser={currentUser}/>}
           </div>

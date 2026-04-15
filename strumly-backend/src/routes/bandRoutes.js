@@ -3,10 +3,12 @@ const router = express.Router();
 const { protect } = require('../Middleware/auth');
 const {
   bandUpload, getAllBands, getMyBands, getBandById, createBand, updateBand, deleteBand,
-  sendJoinRequest, getJoinRequests, respondToRequest, removeMember, leaveBand, getMySentRequests
+  sendJoinRequest, getJoinRequests, respondToRequest, removeMember, leaveBand,
+  getMySentRequests, searchBands,
 } = require('../controllers/bandController');
 
 router.get('/my',                                protect, getMyBands);
+router.get('/search',                            searchBands);
 router.get('/requests/sent',                     protect, getMySentRequests);
 router.get('/',                                  getAllBands);
 router.post('/',                                 protect, bandUpload.single('profilePicture'), createBand);

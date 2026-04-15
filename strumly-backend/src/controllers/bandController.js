@@ -287,7 +287,39 @@ const getMySentRequests = async (req, res) => {
   }
 };
 
+// GET /api/bands/search?q=name&genre=Rock — search bands by name or genre
+const searchBands = async (req, res) => {
+  try {
+    const { q, genre } = req.query;
+    const where = {};
+
+    if (q && q.trim().length > 0) {
+      where.name = { contains: q.trim(), mode: 'insensitive' };
+    }
+    if (genre) {
+      where.genre = { has: genre };
+    }
+
+    const bands = await prisma.band.findMany({
+      where,
+      include: {
+        members: {
+          include: { user: { select: { id: true, username: true, profilePicture: true } } },
+        },
+        _count: { select: { members: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    res.json({ success: true, count: bands.length, data: bands });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   bandUpload, getAllBands, getMyBands, getBandById, createBand, updateBand, deleteBand,
-  sendJoinRequest, getJoinRequests, respondToRequest, removeMember, leaveBand, getMySentRequests
+  sendJoinRequest, getJoinRequests, respondToRequest, removeMember, leaveBand,
+  getMySentRequests, searchBands,
 };

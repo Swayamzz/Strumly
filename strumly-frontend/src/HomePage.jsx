@@ -39,6 +39,7 @@ const Ic={
   X:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
   Chk:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4"><polyline points="20,6 9,17 4,12"/></svg>,
   Del:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>,
+  Bm:({f})=><svg viewBox="0 0 24 24" fill={f?"currentColor":"none"} stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>,
 };
 const SC={BEGINNER:"text-emerald-400",INTERMEDIATE:"text-blue-400",ADVANCED:"text-amber-400",PROFESSIONAL:"text-rose-400"};
 
@@ -158,6 +159,7 @@ function CreatePost({user,onPost}){
 function PostCard({post,currentUser,onAvatarClick,onDelete}){
   const [liked,setLiked]=useState(!!post.isLiked);
   const [likes,setLikes]=useState(post._count?.likes||0);
+  const [saved,setSaved]=useState(!!post.isSaved);
   const [showC,setShowC]=useState(false);
   const [comments,setComments]=useState([]);
   const [comment,setComment]=useState("");
@@ -175,6 +177,7 @@ function PostCard({post,currentUser,onAvatarClick,onDelete}){
       if(r){const d=await r.json();if(d.success)setLikes(d.likes);}
     }
   };
+  const toggleBookmark=async()=>{setSaved(s=>!s);if(isReal){try{await fetch(`${API_BASE}/bookmarks/${post.id}`,{method:"POST",headers:{Authorization:`Bearer ${token()}`}});}catch(e){setSaved(s=>!s);}}};
   const loadComments=async()=>{if(!isReal)return;setLoadingC(true);try{const r=await fetch(`${API_BASE}/posts/${post.id}/comments`,{headers:{Authorization:`Bearer ${token()}`}});const d=await r.json();if(d.success)setComments(d.data);}catch(e){}finally{setLoadingC(false);}};
   const submitComment=async()=>{if(!comment.trim()||!isReal||submittingC)return;setSubmittingC(true);try{const r=await fetch(`${API_BASE}/posts/${post.id}/comment`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token()}`},body:JSON.stringify({content:comment})});const d=await r.json();if(d.success){setComments(c=>[...c,d.data]);setComment("");}else{toast.error(d.message||"Failed to post comment");}}catch(e){toast.error("Failed to post comment");}finally{setSubmittingC(false);}};
 
@@ -215,9 +218,11 @@ function PostCard({post,currentUser,onAvatarClick,onDelete}){
           <div className="flex items-center gap-4">
             <button onClick={toggleLike} className={`flex items-center gap-1.5 text-sm transition-colors ${liked?"text-rose-400":"text-zinc-400 hover:text-rose-400"}`}><Ic.Heart f={liked}/><span>{likes}</span></button>
             <button onClick={()=>{if(!showC)loadComments();setShowC(s=>!s);}} className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-amber-400 transition-colors"><Ic.Chat/><span>{post._count?.comments||comments.length||0}</span></button>
-            <button className="text-zinc-400 hover:text-blue-400 transition-colors"><Ic.Send/></button>
           </div>
-          {!isSelf&&<ConnectButton targetUser={post.author} currentUser={currentUser}/>}
+          <div className="flex items-center gap-3">
+            <button onClick={toggleBookmark} className={`transition-colors ${saved?"text-amber-400":"text-zinc-400 hover:text-amber-400"}`}><Ic.Bm f={saved}/></button>
+            {!isSelf&&<ConnectButton targetUser={post.author} currentUser={currentUser}/>}
+          </div>
         </div>
         {showC&&(
           <div className="mt-3 pt-3 border-t border-zinc-800 space-y-3">

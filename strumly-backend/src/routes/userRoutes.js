@@ -5,7 +5,7 @@ const path = require('path');
 const { protect } = require('../Middleware/auth');
 const {
   getAllUsers, getUserById, createUser, searchUsers,
-  getUserStats, searchByUsername, updateProfile, getMyProfile,
+  getUserStats, searchByUsername, updateProfile, getMyProfile, filterUsers,
 } = require('../controllers/userController');
 
 const storage = multer.diskStorage({
@@ -17,6 +17,7 @@ const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 // Routes
 router.get('/',              getAllUsers);
 router.get('/search',        searchUsers);
+router.get('/filter',        filterUsers);
 router.get('/find',          searchByUsername);
 router.get('/me',            protect, getMyProfile);
 router.patch('/me',          protect, upload.single('avatar'), updateProfile);

@@ -267,6 +267,28 @@ const updateProfile = async (req, res) => {
   }
 };
 
+// Filter/discover users by instrument, genre, skillLevel, location
+const filterUsers = async (req, res) => {
+  try {
+    const { instrument, genre, skillLevel, location } = req.query;
+    const where = {};
+    if (instrument) where.instruments = { has: instrument };
+    if (genre)      where.genres      = { has: genre };
+    if (skillLevel) where.skillLevel  = skillLevel;
+    if (location)   where.location    = { contains: location, mode: 'insensitive' };
+
+    const users = await prisma.user.findMany({
+      where,
+      select: { id: true, username: true, firstName: true, lastName: true, profilePicture: true, instruments: true, genres: true, skillLevel: true, location: true, bio: true },
+      take: 30,
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, count: users.length, data: users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error filtering users', error: error.message });
+  }
+};
+
 // Get my own profile
 const getMyProfile = async (req, res) => {
   try {
@@ -294,4 +316,5 @@ module.exports = {
   searchByUsername,
   updateProfile,
   getMyProfile,
+  filterUsers,
 };

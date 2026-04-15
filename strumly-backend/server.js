@@ -141,6 +141,14 @@ try {
   console.error('❌ Error loading bookmark routes:', error.message);
 }
 
+let mediaRoutes;
+try {
+  mediaRoutes = require('./src/routes/mediaRoutes');
+  console.log('✅ Media routes loaded');
+} catch (error) {
+  console.error('❌ Error loading media routes:', error.message);
+}
+
 // Use Routes (only if they loaded successfully)
 if (authRoutes)         app.use('/api/auth',          authRoutes);
 if (userRoutes)         app.use('/api/users',         userRoutes);
@@ -154,6 +162,7 @@ if (notificationRoutes) app.use('/api/notifications', notificationRoutes);
 if (lyricsRoutes)       app.use('/api/lyrics',        lyricsRoutes);
 if (storyRoutes)        app.use('/api/stories',       storyRoutes);
 if (bookmarkRoutes)     app.use('/api/bookmarks',     bookmarkRoutes);
+if (mediaRoutes)        app.use('/api/media',         mediaRoutes);
 
 let reportRoutes;
 try {

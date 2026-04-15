@@ -155,6 +155,15 @@ if (lyricsRoutes)       app.use('/api/lyrics',        lyricsRoutes);
 if (storyRoutes)        app.use('/api/stories',       storyRoutes);
 if (bookmarkRoutes)     app.use('/api/bookmarks',     bookmarkRoutes);
 
+let reportRoutes;
+try {
+  reportRoutes = require('./src/routes/reportRoutes');
+  console.log('✅ Report routes loaded');
+} catch (error) {
+  console.error('❌ Error loading report routes:', error.message);
+}
+if (reportRoutes)       app.use('/api/reports',       reportRoutes);
+
 // Error Handler Middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err.stack);

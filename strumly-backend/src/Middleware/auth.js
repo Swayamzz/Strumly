@@ -32,7 +32,8 @@ const protect = async (req, res, next) => {
           skillLevel: true,
           location: true,
           profilePicture: true,
-          createdAt: true
+          createdAt: true,
+          isBanned: true,
         }
       });
 
@@ -40,6 +41,13 @@ const protect = async (req, res, next) => {
         return res.status(401).json({
           success: false,
           message: 'User not found'
+        });
+      }
+
+      if (req.user.isBanned) {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account has been suspended. Please contact support.'
         });
       }
 

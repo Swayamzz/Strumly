@@ -225,6 +225,66 @@ const searchByUsername = async (req, res) => {
   }
 };
 
+// Update own profile (bio, name, instruments, genres, location, avatar)
+const updateProfile = async (req, res) => {
+  try {
+    const { firstName, lastName, bio, instruments, genres, skillLevel, location, availability } = req.body;
+    const updateData = {};
+
+    if (firstName  !== undefined) updateData.firstName  = firstName;
+    if (lastName   !== undefined) updateData.lastName   = lastName;
+    if (bio        !== undefined) updateData.bio        = bio;
+    if (location   !== undefined) updateData.location   = location;
+    if (availability !== undefined) updateData.availability = availability;
+    if (skillLevel !== undefined) updateData.skillLevel = skillLevel;
+    if (instruments !== undefined) {
+      updateData.instruments = Array.isArray(instruments)
+        ? instruments
+        : instruments.split(',').map(i => i.trim()).filter(Boolean);
+    }
+    if (genres !== undefined) {
+      updateData.genres = Array.isArray(genres)
+        ? genres
+        : genres.split(',').map(g => g.trim()).filter(Boolean);
+    }
+    if (req.file) {
+      updateData.profilePicture = `/uploads/${req.file.filename}`;
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: updateData,
+      select: {
+        id: true, username: true, email: true, firstName: true, lastName: true,
+        bio: true, profilePicture: true, instruments: true, genres: true,
+        skillLevel: true, location: true, availability: true, role: true,
+      },
+    });
+
+    res.json({ success: true, data: user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error updating profile', error: error.message });
+  }
+};
+
+// Get my own profile
+const getMyProfile = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true, username: true, email: true, firstName: true, lastName: true,
+        bio: true, profilePicture: true, instruments: true, genres: true,
+        skillLevel: true, location: true, availability: true, role: true, createdAt: true,
+      },
+    });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    res.json({ success: true, data: user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching profile', error: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -232,4 +292,6 @@ module.exports = {
   searchUsers,
   getUserStats,
   searchByUsername,
+  updateProfile,
+  getMyProfile,
 };

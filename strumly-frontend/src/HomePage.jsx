@@ -474,8 +474,24 @@ function DiscoverTab({currentUser,onUserClick}){
   );
 }
 
+function TrendingTab({currentUser,onAvatarClick,onDelete}){
+  const [posts,setPosts]=useState([]);
+  const [loading,setLoading]=useState(true);
+  useEffect(()=>{
+    fetch(`${API_BASE}/posts/trending`,{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.json()).then(d=>{if(d.success)setPosts(d.data);}).catch(()=>{}).finally(()=>setLoading(false));
+  },[]);
+  if(loading)return<div className="flex justify-center py-8"><div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"/></div>;
+  if(posts.length===0)return<div className="text-center py-16 text-zinc-500">No trending posts this week</div>;
+  return(
+    <div>
+      <div className="flex items-center gap-3 mb-4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-amber-400"><polyline points="22,7 13.5,15.5 8.5,10.5 2,17"/><polyline points="16,7 22,7 22,13"/></svg><h2 className="font-['Bebas_Neue'] text-2xl text-white">TRENDING <span className="text-amber-400">THIS WEEK</span></h2></div>
+      {posts.map(p=><PostCard key={p.id} post={p} currentUser={currentUser} onAvatarClick={onAvatarClick} onDelete={onDelete}/>)}
+    </div>
+  );
+}
+
 function LeftSidebar({user,activeTab,setActiveTab,onLogout,onProfile,pendingCount,onNewPost,onAdmin}){
-  const nav=[{id:"home",label:"Home",icon:<Ic.Home/>},{id:"search",label:"Discover",icon:<Ic.Search/>},{id:"explore",label:"Explore",icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>},{id:"messages",label:"Messages",icon:<Ic.Msg/>},{id:"bands",label:"Bands",icon:<Ic.Users/>},{id:"marketplace",label:"Marketplace",icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>},{id:"saved",label:"Saved Posts",icon:<Ic.Bm f={false}/>},{id:"followRequests",label:"Follow Requests",icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>},{id:"notifications",label:"Notifications",icon:<Ic.Bell/>,badge:pendingCount},{id:"lyrics",label:"AI Lyrics",icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>}];
+  const nav=[{id:"home",label:"Home",icon:<Ic.Home/>},{id:"search",label:"Discover",icon:<Ic.Search/>},{id:"trending",label:"Trending",icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><polyline points="22,7 13.5,15.5 8.5,10.5 2,17"/><polyline points="16,7 22,7 22,13"/></svg>},{id:"explore",label:"Explore",icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>},{id:"messages",label:"Messages",icon:<Ic.Msg/>},{id:"bands",label:"Bands",icon:<Ic.Users/>},{id:"marketplace",label:"Marketplace",icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>},{id:"saved",label:"Saved Posts",icon:<Ic.Bm f={false}/>},{id:"followRequests",label:"Follow Requests",icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>},{id:"notifications",label:"Notifications",icon:<Ic.Bell/>,badge:pendingCount},{id:"lyrics",label:"AI Lyrics",icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>}];
   return(
     <div className="hidden lg:flex flex-col w-64 xl:w-72 h-screen sticky top-0 border-r border-zinc-800 bg-zinc-950 px-4 py-6">
       <div className="flex items-center gap-3 mb-10 px-2"><MusicBars/><span className="font-['Bebas_Neue'] text-2xl tracking-widest text-white">STRUMLY</span></div>
@@ -603,6 +619,7 @@ export default function HomePage({user,onLogout}){
               </div>
             </>)}
             {activeTab==="search"&&<DiscoverTab currentUser={currentUser} onUserClick={u=>setView({type:"otherProfile",userId:u.id})}/>}
+            {activeTab==="trending"&&<TrendingTab currentUser={currentUser} onAvatarClick={u=>u?.id&&!u.id.startsWith("mock")&&setView({type:"otherProfile",userId:u.id})} onDelete={handleDelete}/>}
             {activeTab==="bands"&&<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center"><h2 className="font-['Bebas_Neue'] text-3xl text-white mb-2">BANDS & <span className="text-amber-400">COLLABS</span></h2><p className="text-zinc-400 text-sm mb-4">Browse bands looking for members.</p><button className="bg-amber-400 hover:bg-amber-300 text-zinc-900 font-bold text-sm px-6 py-2.5 rounded-lg">Coming Soon</button></div>}
             {activeTab==="feed"&&<div><div className="flex items-center gap-3 mb-4"><MusicBars/><h2 className="font-['Bebas_Neue'] text-2xl text-white">JAM <span className="text-amber-400">FEED</span></h2></div>{posts.map(post=><PostCard key={post.id} post={post} currentUser={currentUser} onAvatarClick={u=>u?.id&&!u.id.startsWith("mock")&&setView({type:"otherProfile",userId:u.id})} onDelete={handleDelete}/>)}</div>}
             {activeTab==="notifications"&&<NotificationsTab/>}
